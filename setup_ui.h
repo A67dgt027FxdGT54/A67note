@@ -77,23 +77,43 @@ void inputUserName(){
 	}
 	myName = tGetInputBuf();
 }
-void setLinkingPwd(){
-	/*
-	tClearInputBuf();
-	while(!tInput()){
-		tClear({' ', 0x0F});
-		tOutput("Server IP: ", 5, 45);
-		tOutput("服务器 IP：", 6, 45);
-		tOutput(myIp, 8, 49);
-		
-		tOutput("> Set linking password (don't leak): ", 10, 43);
-		tOutput("设置连接口令（请勿泄露）：", 11, 45);
-		tOutput(tGetInputBuf(), 13, 49);
-		
-		tSwapBuffer();
+void createClientAndShowServerInfo(){
+	Sleep(100);
+	cl.create("127.0.0.1");
+	isServer = true;
+	
+	while(1){
+		while(cl.empty()) Sleep(10);
+		msg_t msg = cl.get_msg();
+		if(msg.type == A67LAN_REWORK_SOCKET_INFO){
+			mySocket = msg.from;
+			break;
+		}
 	}
-	linkingPwd = tGetInputBuf();
-	*/
+	userData[mySocket].name = myName;
+	userData[mySocket].status = eUserStatus.admin;
+	userData[mySocket].ip = myIp;
+	
+	stringstream ss;
+	ss << "服务器 IP：" << myIp << " 服务器套接字：" << mySocket;
+	tSetClipboardTextGbk(ss.str());
+	
+	tClear({' ', 0x0F});
+	tOutput("Server IP: ", 5, 45);
+	tOutput("服务器 IP：", 6, 45);
+	tOutput(myIp, 8, 49);
+	
+	tOutput("Server Socket: ", 10, 45);
+	tOutput("服务器套接字：", 11, 45);
+	tOutput(to_string(mySocket), 13, 49);
+	
+	tOutput("Succeed. Stored the information above to the clip board.", 15, 45);
+	tOutput("创建成功。已将上述信息存储在剪贴板中。", 16, 45);
+	
+	tSwapBuffer();
+	
+	curPage.type = 0;
+	curPage.loadFileFromCurPath();
 }
 void inputServerIp(){
 	tClearInputBuf();
@@ -106,6 +126,21 @@ void inputServerIp(){
 	} 
 	svIp = tGetInputBuf();
 }
+void inputServerSocket(){
+	tClearInputBuf();
+	while(!tInput()){
+		tClear({' ', 0x0F});
+		tOutput("Input server IP: ", 5, 45);
+		tOutput("输入服务器 IP：", 6, 45); 
+		tOutput(svIp, 8, 49);
+		tOutput("> Input server socket: ", 10, 43);
+		tOutput("输入服务器套接字：", 11, 45);
+		tOutput(tGetInputBuf(), 13, 49);
+		tSwapBuffer();
+	}
+	stringstream ss(tGetInputBuf());
+	ss >> svSocket;
+}
 void inputToken(){
 	tClearInputBuf();
 	while(!tInput()){
@@ -113,12 +148,15 @@ void inputToken(){
 		tOutput("Input server IP: ", 5, 45);
 		tOutput("输入服务器 IP：", 6, 45); 
 		tOutput(svIp, 8, 49);
-		tOutput("> Please tell the owner of the server that ", 10, 43);
-		tOutput("your user name, ask him/her for a token, ", 11, 45);
-		tOutput("and input it: ", 12, 45);
-		tOutput("请将你的用户名告知服务器的运营者，申请一个", 13, 45);
-		tOutput("token 并输入：", 14, 45);
-		tOutput(tGetInputBuf(), 16, 49);
+		tOutput("Input server socket: ", 10, 45);
+		tOutput("输入服务器套接字：", 11, 45);
+		tOutput(to_string(svSocket), 13, 49);
+		tOutput("> Please tell the owner of the server that ", 15, 43);
+		tOutput("your user name, ask him/her for a token, ", 16, 45);
+		tOutput("and input it: ", 17, 45);
+		tOutput("请将你的用户名告知服务器的运营者，申请一个", 18, 45);
+		tOutput("token 并输入：", 19, 45);
+		tOutput(tGetInputBuf(), 21, 49);
 		tSwapBuffer();
 	}
 	token = tGetInputBuf();
@@ -148,33 +186,10 @@ void showSetupUI(){
 	ch = tChoose("12"); 
 	
 	if(ch == '1'){
-		setLinkingPwd();
 		tOutput(" ", 10, 43);
 		int ret = sv.create();
 		if(ret == 0){
-			tOutput("Succeed. ", 15, 45);
-			tOutput("创建成功。", 16, 45);
-			Sleep(100);
-			cl.create("127.0.0.1");
-			tSwapBuffer(); 
-			isServer = true;
-			
-			while(1){
-				while(cl.empty()) Sleep(10);
-				msg_t msg = cl.get_msg();
-				if(msg.type == A67LAN_SOCKET_INFO){
-					mySocket = msg.from;
-					break;
-				}
-			}
-			
-			
-			userData[mySocket].name = myName;
-			userData[mySocket].status = eUserStatus.admin;
-			userData[mySocket].ip = myIp;
-			
-			curPage.type = 0;
-			curPage.loadFileFromCurPath();
+			createClientAndShowServerInfo();
 		}
 		else if(ret == 1){
 			tOutput("Fail: You can create ONE server only. Link to another's server later. ", 15, 45);
@@ -193,18 +208,19 @@ void showSetupUI(){
 	}
 	if(ch == '2'){
 		inputServerIp();
+		inputServerSocket();
 		bool invalidToken = 1, clientCreated = 0;
 		while(invalidToken){
 			inputToken();
 			
-			tOutput(" ", 10, 43);
-			tOutput("> Linking to the server...", 18, 43);
-			tOutput("正在连接到服务器...", 19, 45);
+			tOutput(" ", 15, 43);
+			tOutput("> Linking to the server...", 23, 43);
+			tOutput("正在连接到服务器...", 24, 45);
 			tSwapBuffer();
 			
 			if(!clientCreated) cl.create(svIp), clientCreated = 1;
 			
-			cl.send_msg("login " + myName + " " + token, svIp);
+			sendMsgToServer("login " + myName + " " + token);
 			
 			
 			// Request for page after login succ

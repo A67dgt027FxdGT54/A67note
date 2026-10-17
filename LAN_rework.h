@@ -131,7 +131,7 @@ struct A67LAN_rework_client_data_t{
 	}
 };
 struct A67LAN_rework_server_msg_t{
-	SOCKET target;
+	SOCKET target = A67LAN_REWORK_ALL;
 	std::string ltfm;
 };
 
@@ -302,6 +302,7 @@ private:
 			saiSize = sizeof(saiClient);
 			SOCKET newSocket = accept(serverSocket, (sockaddr FAR*) &saiClient, &saiSize);
 			if(newSocket == INVALID_SOCKET){
+				if(!running) break;
 				A67LAN_REWORK_LOG("WARN", "Fail to link.");
 				if(cbFailToLink) cbFailToLink();
 				continue;
@@ -337,14 +338,15 @@ private:
 			mtxSendBuf.unlock();
 			
 //			serverRecvThreads.push_back(
-//				std::thread([this, newSocket](){
-//					serverRecvThreadFunc(newSocket);
-//				})
-//			);
-			std::thread serverRecvThread = std::thread([this, newSocket](){
-				serverRecvThreadFunc(newSocket);
-			});
-			serverRecvThread.detach();
+			serverRecvThreads.emplace_back(
+				std::thread([this, newSocket](){
+					serverRecvThreadFunc(newSocket);
+				})
+			);
+//			std::thread serverRecvThread = std::thread([this, newSocket](){
+//				serverRecvThreadFunc(newSocket);
+//			});
+//			serverRecvThread.detach();
 		}
 	}
 	void serverSendThreadFunc(){
@@ -390,7 +392,7 @@ private:
 				memcpy(&len, &ltm[0], sizeof(int));
 				if(len < 12) { closesocket(clientSocket); break; }
 				memcpy(&ullTgt, &ltm[4], sizeof(unsigned long long));
-				ltm.erase(12);
+				ltm.erase(0, 12);
 				skTgt = static_cast<SOCKET>(ullTgt);
 			}
 			A67LAN_rework_server_msg_t sm;
@@ -504,10 +506,17 @@ private:
 		saiConser.sin_port = htons(A67LAN_REWORK_PORT);
 		saiConser.sin_addr.S_un.S_addr = inet_addr(mServerIp.c_str());
 		for(int i=1;i<=10;i++){
-			if(connect(serverSocket, (LPSOCKADDR)&saiConser, sizeof(saiConser)) == INVALID_SOCKET){
+			if(connect(serverSocket, (LPSOCKADDR)&saiConser, sizeof(saiConser)) == SOCKET_ERROR){
 				if(i == 10){
 					if(cbFailToLinkToServer) cbFailToLinkToServer();
+					else throw A67LAN_rework_FailedToLinkToServer();
+					running = false;
 					return;
+				}
+				closesocket(serverSocket);
+				serverSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+				if(serverSocket == INVALID_SOCKET){
+					throw A67LAN_rework_FailedToCreateServerSocket();
 				}
 			}
 			else break;
