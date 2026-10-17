@@ -306,6 +306,7 @@ private:
 				if(cbFailToLink) cbFailToLink();
 				continue;
 			}
+			if(serverOwnerClientSocket == INVALID_SOCKET) serverOwnerClientSocket = newSocket;
 			
 			std::string ip_buf = std::string(INET_ADDRSTRLEN, '\0');
 			inet_ntop(AF_INET, &(saiClient.sin_addr), &ip_buf[0], INET_ADDRSTRLEN);
@@ -329,8 +330,14 @@ private:
 			mtxSendBuf.unlock();
 			
 			sm.target = newSocket;
+			dwLen = 21;
 			type = A67LAN_REWORK_SOCKET_INFO;
+			unsigned long long ullSOC = static_cast<unsigned long long>(serverOwnerClientSocket);
+			sm.ltfm = std::string(dwLen, '\0');
+			memcpy(&sm.ltfm[0], &dwLen, sizeof(DWORD));
 			memcpy(&sm.ltfm[4], &type, sizeof(BYTE));
+			memcpy(&sm.ltfm[5], &from, sizeof(unsigned long long));
+			memcpy(&sm.ltfm[13], &ullSOC, sizeof(unsigned long long));
 			
 			mtxSendBuf.lock();
 			sendBuf.push(sm);
