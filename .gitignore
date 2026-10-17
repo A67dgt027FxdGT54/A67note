@@ -1,0 +1,6 @@
+*.log
+data/
+*.png
+*.exe
+*.gch
+*.txt
