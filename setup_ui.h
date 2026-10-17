@@ -13,6 +13,7 @@ string getTimesEn(int times){
 	return "";
 }
 
+
 void chooseIp(){
 	bool invalidChoose = 1;
 	auto ips = get_ip();
@@ -77,6 +78,7 @@ void inputUserName(){
 	myName = tGetInputBuf();
 }
 void setLinkingPwd(){
+	/*
 	tClearInputBuf();
 	while(!tInput()){
 		tClear({' ', 0x0F});
@@ -91,6 +93,7 @@ void setLinkingPwd(){
 		tSwapBuffer();
 	}
 	linkingPwd = tGetInputBuf();
+	*/
 }
 void inputServerIp(){
 	tClearInputBuf();
@@ -120,6 +123,7 @@ void inputToken(){
 	}
 	token = tGetInputBuf();
 }
+
 void showSetupUI(){
 	tOutput("A67note", 0, 56);
 	tOutput("Developed by A67dgt027FxdGT54, AC Games", 29, 40);
@@ -154,8 +158,20 @@ void showSetupUI(){
 			cl.create("127.0.0.1");
 			tSwapBuffer(); 
 			isServer = true;
-			userData["127.0.0.1"].name = myName;
-			userData["127.0.0.1"].status = eUserStatus.admin;
+			
+			while(1){
+				while(cl.empty()) Sleep(10);
+				msg_t msg = cl.get_msg();
+				if(msg.type == A67LAN_SOCKET_INFO){
+					mySocket = msg.from;
+					break;
+				}
+			}
+			
+			
+			userData[mySocket].name = myName;
+			userData[mySocket].status = eUserStatus.admin;
+			userData[mySocket].ip = myIp;
 			
 			curPage.type = 0;
 			curPage.loadFileFromCurPath();
@@ -187,7 +203,9 @@ void showSetupUI(){
 			tSwapBuffer();
 			
 			if(!clientCreated) cl.create(svIp), clientCreated = 1;
+			
 			cl.send_msg("login " + myName + " " + token, svIp);
+			
 			
 			// Request for page after login succ
 			
@@ -196,16 +214,21 @@ void showSetupUI(){
 			while(1){
 				while(cl.empty()) Sleep(10);
 				msg_t msg = cl.get_msg();
-				if(msg.type == "sys"){
-					if(msg.con == "join"){
-						wlog("INFO", "user Ip " + msg.ip + " joined");
-					}
-					else if(msg.con == "leave"){
-						wlog("INFO", "user Ip " + msg.ip + " left");
-					}
+				if(msg.type == A67LAN_REWORK_JOIN){
+					stringstream ss;
+					ss << "user socket " << msg.from << " IP " << sv.getIpOfClient(msg.from) << " joined.";
+					wlog("INFO", ss.str());
 				}
-				else if(msg.type == "msg"){
-					if(msg.ip != svIp) continue; // ignore msg from others.
+				else if(msg.type == A67LAN_REWORK_LEAVE){
+					stringstream ss;
+					ss << "user socket " << msg.from << " IP " << sv.getIpOfClient(msg.from) << " left.";
+					wlog("INFO", ss.str());
+				}
+				else if(msg.type == A67LAN_REWORK_SOCKET_INFO){
+					mySocket = msg.from;
+				}
+				else if(msg.type == A67LAN_REWORK_COMMON){
+//					if(msg.ip != svIp) continue; // ignore msg from others.
 					stringstream ss(msg.con);
 					int iStatus;
 					ss >> iStatus;
