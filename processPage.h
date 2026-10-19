@@ -10,10 +10,13 @@ void processManagerPage(){
 	;
 }
 void processLoadingPage(){
+	tSetOutputCol(0x09);
 	tOutput("Loading... Please wait.", 10, 45);
 	tOutput("¼ÓÔØÖÐ... ÇëµÈºò¡£", 11, 45);
+	tSetOutputCol(0x0F);
 }
 void process401Page(){
+	tSetOutputCol(0x0C);
 	if(curPage.desc == "invalid_token"){
 		tOutput("401 Invalid Token", 10, 45);
 		tOutput("401 token ÎÞÐ§", 11, 45);
@@ -24,14 +27,19 @@ void process401Page(){
 		tOutput("401 You didn't login", 10, 45);
 		tOutput("401 ÄúÎ´µÇÂ¼", 11, 45);
 	}
+	tSetOutputCol(0x0F);
 }
 void process403Page(){
+	tSetOutputCol(0x0C);
 	tOutput("403 Forbidden", 10, 45);
 	tOutput("403 Äú±»·â½û", 11, 45);
+	tSetOutputCol(0x0F);
 }
 void process404Page(){
-	tOutput("404 Not Found", 11, 45);
-	tOutput("404 Î´ÕÒµ½Ò³Ãæ", 10, 45);
+	tSetOutputCol(0x0C);
+	tOutput("404 Not Found", 10, 45);
+	tOutput("404 Î´ÕÒµ½Ò³Ãæ", 11, 45);
+	tSetOutputCol(0x0F);
 }
 
 namespace nsProcessURLInput{
@@ -61,6 +69,14 @@ namespace nsProcessURLInput{
 			url = ssPath.str();
 			isUrlLoaded = 1;
 		}
+		
+		
+		if(prCursorPos.second > url.length()) prCursorPos.second = url.length();
+		if(prCursorPos.second < urlHeadLength) prCursorPos.second = urlHeadLength;
+		if(prStartMouse.second >= url.length()) prStartMouse.second = url.length() - 1;
+		if(prStartMouse.second < urlHeadLength) prStartMouse.second = urlHeadLength;
+		if(prEndMouse.second >= url.length()) prEndMouse.second = url.length() - 1;
+		if(prEndMouse.second < urlHeadLength) prEndMouse.second = urlHeadLength;
 		
 		// input
 		if(focus == 0 && _kbhit()){

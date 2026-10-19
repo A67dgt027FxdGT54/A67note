@@ -105,7 +105,9 @@ tErr tEnable(tEnum func){
 	}
 	else if(func < 0x0200){
 		tEnabledBits[func - 0x0100] = 1;
+		return 0;
 	}
+	return ERROR_INVALID_PARAMETER;
 }
 tErr tDisable(tEnum func){
 	if(func < 0x0100){

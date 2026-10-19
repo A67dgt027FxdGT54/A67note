@@ -26,9 +26,9 @@ public:
 	}
 };
 
-class A67LAN_rework_BadProtocol: public std::logic_error{
+class A67LAN_rework_BadProtocol: public std::runtime_error{
 public:
-	explicit A67LAN_rework_BadProtocol(): std::logic_error("A67LAN_rework: Bad protocol."){
+	explicit A67LAN_rework_BadProtocol(): std::runtime_error("A67LAN_rework: Bad protocol."){
 	}
 };
 class A67LAN_rework_FailedToLinkToServer: public A67LAN_rework_networkError{

@@ -110,7 +110,12 @@ void createClientAndShowServerInfo(){
 	tOutput("Succeed. Stored the information above to the clip board.", 15, 45);
 	tOutput("创建成功。已将上述信息存储在剪贴板中。", 16, 45);
 	
+	tOutput("> Press [1] to continue. ", 18, 43);
+	tOutput("按 [1] 继续。", 19, 45);
+	
 	tSwapBuffer();
+	
+	tChoose("1");
 	
 	curPage.type = 0;
 	curPage.loadFileFromCurPath();
@@ -127,19 +132,23 @@ void inputServerIp(){
 	svIp = tGetInputBuf();
 }
 void inputServerSocket(){
-	tClearInputBuf();
-	while(!tInput()){
-		tClear({' ', 0x0F});
-		tOutput("Input server IP: ", 5, 45);
-		tOutput("输入服务器 IP：", 6, 45); 
-		tOutput(svIp, 8, 49);
-		tOutput("> Input server socket: ", 10, 43);
-		tOutput("输入服务器套接字：", 11, 45);
-		tOutput(tGetInputBuf(), 13, 49);
-		tSwapBuffer();
+	bool invalidSocket = 1;
+	while(invalidSocket){
+		tClearInputBuf();
+		while(!tInput()){
+			tClear({' ', 0x0F});
+			tOutput("Input server IP: ", 5, 45);
+			tOutput("输入服务器 IP：", 6, 45); 
+			tOutput(svIp, 8, 49);
+			tOutput("> Input server socket: ", 10, 43);
+			tOutput("输入服务器套接字：", 11, 45);
+			tOutput(tGetInputBuf(), 13, 49);
+			tSwapBuffer();
+		}
+		stringstream ss(tGetInputBuf());
+		ss >> svSocket;
+		if(svSocket != (unsigned long long)(-1)) invalidSocket = 0; 
 	}
-	stringstream ss(tGetInputBuf());
-	ss >> svSocket;
 }
 void inputToken(){
 	tClearInputBuf();
@@ -219,8 +228,7 @@ void showSetupUI(){
 			tSwapBuffer();
 			
 			if(!clientCreated) cl.create(svIp), clientCreated = 1;
-			
-			sendMsgToServer("login " + myName + " " + token);
+			else sendMsgToServer("login " + myName + " " + token);
 			
 			
 			// Request for page after login succ
@@ -242,9 +250,11 @@ void showSetupUI(){
 				}
 				else if(msg.type == A67LAN_REWORK_SOCKET_INFO){
 					mySocket = msg.from;
+					
+					sendMsgToServer("login " + myName + " " + token);
 				}
 				else if(msg.type == A67LAN_REWORK_COMMON){
-//					if(msg.ip != svIp) continue; // ignore msg from others.
+					if(msg.from != svSocket) continue; // ignore msg from others.
 					stringstream ss(msg.con);
 					int iStatus;
 					ss >> iStatus;

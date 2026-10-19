@@ -31,13 +31,26 @@ struct EUserStatus{
 	const int didNotLogin = 0, normal = 1, admin = 2;
 }eUserStatus;
 
+#define TOKEN_PLACEHOLDER "__PLACEHOLDER__"
+
+set<string> ipBlacklist, nameBlacklist;
+
 struct UserData{
-	string name = "Unknown";
+	string name = "Unknown", token = TOKEN_PLACEHOLDER;
 	int status = eUserStatus.didNotLogin;
 	int invalidTokenCount = 0;
 	string ip = "0.0.0.0";
+	bool isForbidden(){
+		return ipBlacklist.find(this->ip) != ipBlacklist.end() || nameBlacklist.find(this->name) != nameBlacklist.end();
+	}
 };
 map<unsigned long long, UserData> userData;
+
+void banUser(unsigned long long sock){
+	UserData& user = userData[sock];
+	if(ipBlacklist.find(user.ip) == ipBlacklist.end()) ipBlacklist.insert(user.ip);
+	if(nameBlacklist.find(user.name) == nameBlacklist.end()) nameBlacklist.insert(user.name);
+}
 
 #define sendMsgToServer(_msg) do{ \
 	cl.send_msg(_msg, svSocket); \
@@ -118,7 +131,12 @@ int main(){
 	setup();
 	showSetupUI();
 	
-	;
+	
+	while(1){
+		processMsg();
+		processPage();
+		Sleep(10);
+	}
 	
 	tPause();
 }
@@ -126,3 +144,5 @@ int main(){
 #include "check.h"
 #include "setup.h"
 #include "setup_ui.h"
+#include "processMsg.h"
+#include "processPage.h"

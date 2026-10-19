@@ -381,7 +381,13 @@ private:
 	void serverRecvThreadFunc(SOCKET clientSocket){
 		A67LAN_rework_tcp_recv_t rec;
 		while(running){
-			auto prRet = rec.recv_(clientSocket);
+			std::pair<int, std::string> prRet = {-1, "Bad Protocol"};
+			try{
+				prRet = rec.recv_(clientSocket);
+			}
+			catch(const A67LAN_rework_BadProtocol&){
+				break;
+			}
 			int iRet = prRet.first;
 			std::string ltm = std::move(prRet.second);
 			if(iRet <= 0) break;
@@ -483,8 +489,8 @@ public:
 	~client_t(){
 		running = false;
 		closesocket(serverSocket);
-	    if(clientSendThread.joinable()) clientSendThread.join();
 	    if(clientMainThread.joinable()) clientMainThread.join();
+	    if(clientSendThread.joinable()) clientSendThread.join();
 	}
 	void setFailToLinkToServerCallback(std::function<void(void)> cb){ cbFailToLinkToServer = cb; }
 	void setServerCloseCallback(std::function<void(void)> cb){ cbServerClose = cb; }
@@ -529,7 +535,13 @@ private:
 		A67LAN_rework_tcp_recv_t rec;
 		while(running){
 			Sleep(10);
-			auto prRet = rec.recv_(serverSocket);
+			std::pair<int, std::string> prRet = {-1, "Bad Protocol"};
+//			try{                        //       it is ok to terminate bad clients.
+				prRet = rec.recv_(serverSocket);
+//			}
+//			catch(const A67LAN_rework_BadProtocol&){
+//				
+//			}
 			int iRet = prRet.first;
 			std::string ltfm = std::move(prRet.second);
 			if(iRet <= 0){
