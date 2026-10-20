@@ -259,7 +259,10 @@ void showSetupUI(){
 					int iStatus;
 					ss >> iStatus;
 					if(iStatus == 204){
-						invalidToken = 0;
+						string desc;
+						ss >> desc;
+						if(desc == "login_succeed")
+							invalidToken = 0;
 						break;
 					}
 					else if(iStatus == 401){

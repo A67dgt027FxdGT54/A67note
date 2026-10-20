@@ -3,6 +3,8 @@
 #include "TUI.h" 
 using namespace std;
 
+// bugs: https://chat.deepseek.com/share/m9cgztutwrv5h2wvg2
+
 void wlog(std::string level,std::string msg){
 	std::ofstream _log("note.log",std::ios::app);
     std::time_t now = std::time(nullptr);
@@ -22,6 +24,19 @@ string getTimesEn(int times);
 unsigned long long mySocket = -1, svSocket = -1;
 string myName = "", myIp = "127.0.0.1", svIp = "127.0.0.1", token = "";
 bool isServer = false;
+
+
+/*	Message Format
+ *	- from client to server:
+ *		- login <userName> <token>
+ *		- get <path> <userName> <token>
+ *	- from server to client:
+ *		- 204 (login_succeed | get_no_content)
+ *		- 401 did_not_login
+ *		- 401 invalid_token <invalidTokenCount>
+ *		- 403 
+ *		- 404
+ */
 
 server_t sv;
 client_t cl;
