@@ -156,8 +156,8 @@ void tClear(tPx px){
 	}
 }
 void tSwapBuffer(){
-	t__SetCursorPos(0, 0);
 	for(int row = 0; row < tWindowHeight; row++){
+		t__SetCursorPos(row, 0);
 		for(int col = 0; col < tWindowWidth; col++){
 			if(!col || tScreenBuf[row][col-1].second != tScreenBuf[row][col].second){
 				t__SetOutputCol(tScreenBuf[row][col].second);

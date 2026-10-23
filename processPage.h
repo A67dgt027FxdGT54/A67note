@@ -3,9 +3,160 @@
 int focus = -1;
 // 0 = url, 1 = main
 
-void processNormalPage(){
-	;
-}
+namespace nsProcessNormalPage{
+	bool isPressedLastFrame = false;
+	bool isSelecting = false;
+	pair<int, int> selectStart, selectEnd, cursorPos, mousePos, scroll;
+	
+	bool isMouseInArea = false;
+	bool isPressingMouseLeft = false;
+	
+	File& file = curPage.curFile;
+	
+	pair<int, int> screenSpaceToTextSpace(pair<int, int> pr){
+		return make_pair(pr.first - 2 + scroll.first, pr.second + scroll.second);
+	}
+	void setupMouseInfo(){
+		mousePos = tGetMousePosChar();
+		isPressingMouseLeft = GetAsyncKeyState(1) & 0x8000;
+		isMouseInArea = tIsMouseInArea(2, 0, 26, 120);
+	}
+	void processMouseInput(){
+		if(isMouseInArea){
+			if(isPressingMouseLeft){
+				selectEnd = screenSpaceToTextSpace(mousePos);
+				if(!isPressedLastFrame){
+					selectStart = screenSpaceToTextSpace(mousePos);
+					focus = 1;
+					cursorPos = screenSpaceToTextSpace(mousePos);
+				}
+			}
+		}
+		if(selectStart < selectEnd || selectEnd < selectStart){
+			isSelecting = 1;
+		}
+		else{
+			isSelecting = 0;
+		}
+		isPressedLastFrame = isPressingMouseLeft;
+	}
+	void clampPosOfAPair(pair<int, int>& pr, bool allowSelectAtEnd){
+		if(allowSelectAtEnd){
+			if(pr.second > file.lines[pr.first].length()) pr.second = file.lines[pr.first].length();
+		}
+		else{
+			if(pr.second >= file.lines[pr.first].length()) pr.second = file.lines[pr.first].length();
+		}
+		if(pr.second < 0) pr.second = 0;
+	}
+	void clampPos(){
+		clampPosOfAPair(cursorPos, 1);
+		clampPosOfAPair(selectStart, 0);
+		clampPosOfAPair(selectEnd, 0);
+	}
+	void processInput(){
+		if(focus != 1 || !_kbhit()) return;
+		
+		wchar_t wch = _getwch();
+		string chs = tWchar_to_gbk(wch);
+		char ch = 65;
+		if(chs.length() == 1) ch = chs[0];
+		
+		if(ch == '\b'){
+			if(isSelecting){
+				if(selectEnd < selectStart){
+					swap(selectEnd, selectStart);
+				}
+				if(selectStart.first == selectEnd.first){
+					file.lines[selectStart.first].erase(selectStart.second, selectEnd.second - selectStart.second + 1);
+				}
+				else{
+					file.lines[selectStart.first].erase(selectStart.second);
+					file.lines[selectEnd.first].erase(0, selectEnd.second + 1);
+					if(selectStart.first + 1 < selectEnd.first){
+						file.lines.erase(selectStart.first + 1, selectEnd.first - 1 - selectStart.first);
+					}
+				}
+				isSelecting = 0;
+				selectStart = selectEnd = make_pair(0, 0);
+			}
+			else{
+				if(cursorPos.second > 0){
+					file.lines[cursorPos.first].erase(--cursorPos.second, 1);
+				}
+				else if(cursorPos.first > 0){
+					file.lines[cursorPos.first - 1] += file.lines[cursorPos.first];
+					file.lines.erase(cursorPos.first, 1);
+				}
+			}
+		}
+		/*
+		else if(ch == '\r'){
+			if(url.length() <= urlHeadLength){
+				curPage.type = 404;
+			} 
+			else{
+				curPage.path = url.substr(urlHeadLength);
+				curPage.getPageWithCurPath();
+			}
+		}
+		else if(wch == 224){
+			wch = _getwch();
+			if(wch == 75){ // L Arrow
+				prCursorPos.second--;
+			}
+			else if(wch == 77){ // R Arrow
+				prCursorPos.second++;
+			}
+			else if(wch == 83){ // Delete
+				if(isSelecting){
+					if(prEndMouse.second < prStartMouse.second) url.erase(prEndMouse.second, prStartMouse.second - prEndMouse.second + 1);
+					else url.erase(prStartMouse.second, prEndMouse.second - prStartMouse.second + 1);
+					isSelecting = 0;
+					prStartMouse = prEndMouse = make_pair(0, 0);
+				}
+				else{
+					if(prCursorPos.second != url.length()) url.erase(prCursorPos.second, 1);
+				}
+			}
+			else if(wch == 71){ // Home
+				prCursorPos.second = urlHeadLength;
+			}
+			else if(wch == 79){ // End
+				prCursorPos.second = url.length();
+			}
+		}
+		else{
+			string inp = tWchar_to_gbk(wch);
+			if(isSelecting){
+				if(prEndMouse.second < prStartMouse.second){
+					url.erase(prEndMouse.second, prStartMouse.second - prEndMouse.second + 1);
+					url.insert(prEndMouse.second, inp);
+					prCursorPos.second = prEndMouse.second + inp.length();
+				} 
+				else {
+					url.erase(prStartMouse.second, prEndMouse.second - prStartMouse.second + 1);
+					url.insert(prStartMouse.second, inp);
+					prCursorPos.second = prStartMouse.second + inp.length();
+				}
+				isSelecting = 0;
+				prStartMouse = prEndMouse = make_pair(0, 0);
+			}
+			else{
+				url.insert(prCursorPos.second, inp);
+				prCursorPos.second += inp.length();
+			} 
+		}
+		*/
+	}
+	void processNormalPage(){
+		setupMouseInfo();
+		processMouseInput();
+		clampPos();
+		processInput();
+	}
+} 
+
 void processManagerPage(){
 	;
 }
@@ -193,7 +344,7 @@ void processPage(){
 	tClear({' ', 0x0F});
 	nsProcessURLInput::processURLInput();
 	
-	if(curPage.type == 0) processNormalPage();
+	if(curPage.type == 0) nsProcessNormalPage::processNormalPage();
 	else if(curPage.type == 1) processManagerPage();
 	else if(curPage.type == 2) processLoadingPage();
 	else if(curPage.type == 401) process401Page();

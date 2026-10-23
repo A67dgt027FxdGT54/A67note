@@ -444,6 +444,8 @@ private:
 		closesocket(clientSocket);
 		return;
 	}
+public:
+	//
 };
 
 struct msg_t{

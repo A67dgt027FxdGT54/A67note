@@ -31,7 +31,8 @@ bool isServer = false;
  *		- login <userName> <token>
  *		- get <path> <userName> <token>
  *	- from server to client:
- *		- 204 (login_succeed | get_no_content)
+ *		- 200 <path> \n line1 \n line2 \n ...
+ *		- 204 (login_succeed | get_no_content <path>)
  *		- 401 did_not_login
  *		- 401 invalid_token <invalidTokenCount>
  *		- 403 
@@ -46,15 +47,20 @@ struct EUserStatus{
 	const int didNotLogin = 0, normal = 1, admin = 2;
 }eUserStatus;
 
-#define TOKEN_PLACEHOLDER "__PLACEHOLDER__"
+//#define TOKEN_PLACEHOLDER "__PLACEHOLDER__"
+#define NAME_PLACEHOLDER "__NAME PLACEHOLDER__" 
+	// there is a space because stringstream splits by space so that no one can set user name to the placeholder.
+#define IP_PLACEHOLDER "__IP_PLACEHOLDER__"
 
 set<string> ipBlacklist, nameBlacklist;
 
+map<string, string> mpNameToToken; 
+
 struct UserData{
-	string name = "Unknown", token = TOKEN_PLACEHOLDER;
+	string name = NAME_PLACEHOLDER;
 	int status = eUserStatus.didNotLogin;
 	int invalidTokenCount = 0;
-	string ip = "0.0.0.0";
+	string ip = IP_PLACEHOLDER;
 	bool isForbidden(){
 		return ipBlacklist.find(this->ip) != ipBlacklist.end() || nameBlacklist.find(this->name) != nameBlacklist.end();
 	}
@@ -63,8 +69,8 @@ map<unsigned long long, UserData> userData;
 
 void banUser(unsigned long long sock){
 	UserData& user = userData[sock];
-	if(ipBlacklist.find(user.ip) == ipBlacklist.end()) ipBlacklist.insert(user.ip);
-	if(nameBlacklist.find(user.name) == nameBlacklist.end()) nameBlacklist.insert(user.name);
+	if(user.ip != IP_PLACEHOLDER && !user.ip.empty() && ipBlacklist.find(user.ip) == ipBlacklist.end()) ipBlacklist.insert(user.ip);
+	if(user.name != NAME_PLACEHOLDER && nameBlacklist.find(user.name) == nameBlacklist.end()) nameBlacklist.insert(user.name);
 }
 
 #define sendMsgToServer(_msg) do{ \
@@ -82,9 +88,10 @@ struct File{
 			return false;
 		} 
 		while(getline(ifsFile, sTempLine)){
+			if(sTempLine.size() && sTempLine.back() == '\r') sTempLine.pop_back();
 			lines.push_back(sTempLine);
 		}
-		if(lines.size() == 0) lines = {""};
+		if(lines.size() == 0) {lines = {""}; return false;}
 		return true;
 	}
 };
