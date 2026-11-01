@@ -94,6 +94,12 @@ struct File{
 		if(lines.size() == 0) {lines = {""}; return false;}
 		return true;
 	}
+	void erase(int start, int count){
+		lines.erase(lines.begin() + start, lines.begin() + start + count);
+	}
+	void insert(int index, const std::string& value){
+		lines.insert(lines.begin() + index, value);
+	}
 };
 void requestForPage(const string& path){
 	stringstream ss;

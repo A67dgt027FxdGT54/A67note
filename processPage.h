@@ -41,6 +41,14 @@ namespace nsProcessNormalPage{
 		isPressedLastFrame = isPressingMouseLeft;
 	}
 	void clampPosOfAPair(pair<int, int>& pr, bool allowSelectAtEnd){
+		if(file.lines.empty()) {
+			file.lines = {""};
+			pr = make_pair(0, 0);
+			return;
+		} 
+		if(pr.first < 0) pr.first = 0;
+		if(pr.first >= file.lines.size()) pr.first = file.lines.size() - 1;
+		
 		if(allowSelectAtEnd){
 			if(pr.second > file.lines[pr.first].length()) pr.second = file.lines[pr.first].length();
 		}
@@ -54,6 +62,24 @@ namespace nsProcessNormalPage{
 		clampPosOfAPair(selectStart, 0);
 		clampPosOfAPair(selectEnd, 0);
 	}
+	// 									REMEMBER TO KEEP `scroll` POSITIVE
+	void deleteSelect(){
+		if(selectEnd < selectStart){
+			swap(selectEnd, selectStart);
+		}
+		if(selectStart.first == selectEnd.first){
+			file.lines[selectStart.first].erase(selectStart.second, selectEnd.second - selectStart.second + 1);
+		}
+		else{
+			file.lines[selectStart.first].erase(selectStart.second);
+			file.lines[selectStart.first] += file.lines[selectEnd.first].substr(selectEnd.second + 1);
+			if(selectStart.first < selectEnd.first){
+				file.erase(selectStart.first + 1, selectEnd.first - selectStart.first);
+			}
+		}
+		isSelecting = 0;
+		cursorPos = selectEnd = selectStart;
+	}
 	void processInput(){
 		if(focus != 1 || !_kbhit()) return;
 		
@@ -64,68 +90,101 @@ namespace nsProcessNormalPage{
 		
 		if(ch == '\b'){
 			if(isSelecting){
-				if(selectEnd < selectStart){
-					swap(selectEnd, selectStart);
-				}
-				if(selectStart.first == selectEnd.first){
-					file.lines[selectStart.first].erase(selectStart.second, selectEnd.second - selectStart.second + 1);
-				}
-				else{
-					file.lines[selectStart.first].erase(selectStart.second);
-					file.lines[selectEnd.first].erase(0, selectEnd.second + 1);
-					if(selectStart.first + 1 < selectEnd.first){
-						file.lines.erase(selectStart.first + 1, selectEnd.first - 1 - selectStart.first);
-					}
-				}
-				isSelecting = 0;
-				selectStart = selectEnd = make_pair(0, 0);
+				deleteSelect();
 			}
 			else{
 				if(cursorPos.second > 0){
 					file.lines[cursorPos.first].erase(--cursorPos.second, 1);
 				}
 				else if(cursorPos.first > 0){
+					int len = file.lines[cursorPos.first - 1].length();
 					file.lines[cursorPos.first - 1] += file.lines[cursorPos.first];
-					file.lines.erase(cursorPos.first, 1);
+					file.erase(cursorPos.first, 1);
+					cursorPos.first--; cursorPos.second = len;
 				}
 			}
 		}
-		/*
-		else if(ch == '\r'){
-			if(url.length() <= urlHeadLength){
-				curPage.type = 404;
-			} 
-			else{
-				curPage.path = url.substr(urlHeadLength);
-				curPage.getPageWithCurPath();
-			}
+		else if(ch == '\r' || ch == '\n'){
+			if(isSelecting) deleteSelect();
+			file.insert(cursorPos.first + 1, file.lines[cursorPos.first].substr(cursorPos.second));
+			file.lines[cursorPos.first].erase(cursorPos.second);
+			cursorPos.first++; cursorPos.second = 0;
 		}
-		else if(wch == 224){
+		else if(wch == 224 || wch == 0){
 			wch = _getwch();
 			if(wch == 75){ // L Arrow
-				prCursorPos.second--;
+				if(isSelecting){
+					if(selectEnd < selectStart) swap(selectStart, selectEnd);
+					cursorPos = selectEnd = selectStart;
+					isSelecting = 0;
+				}
+				if(cursorPos.second == 0){
+					if(cursorPos.first > 0) cursorPos.second = file.lines[--cursorPos.first].length();
+				}
+				else cursorPos.second--;
 			}
 			else if(wch == 77){ // R Arrow
-				prCursorPos.second++;
+				if(isSelecting){
+					if(selectEnd < selectStart) swap(selectStart, selectEnd);
+					cursorPos = selectStart = selectEnd;
+					isSelecting = 0;
+				}
+				if(cursorPos.second == file.lines[cursorPos.first].length()){
+					if(cursorPos.first + 1 < file.lines.size()) cursorPos.second = 0, cursorPos.first++;
+				}
+				else cursorPos.second++;
+			}
+			else if(wch == 72){ // U Arrow
+				// no-desiredCol is expected
+				if(isSelecting){
+					if(selectEnd < selectStart) swap(selectStart, selectEnd);
+					cursorPos = selectEnd = selectStart;
+					isSelecting = 0;
+				}
+				if(cursorPos.first > 0) --cursorPos.first,
+				clampPos();
+			}
+			else if(wch == 80){ // D Arrow
+				if(isSelecting){
+					if(selectEnd < selectStart) swap(selectStart, selectEnd);
+					cursorPos = selectStart = selectEnd;
+					isSelecting = 0;
+				}
+				if(cursorPos.first + 1 < file.lines.size()) cursorPos.first++,
+				clampPos();
 			}
 			else if(wch == 83){ // Delete
 				if(isSelecting){
-					if(prEndMouse.second < prStartMouse.second) url.erase(prEndMouse.second, prStartMouse.second - prEndMouse.second + 1);
-					else url.erase(prStartMouse.second, prEndMouse.second - prStartMouse.second + 1);
-					isSelecting = 0;
-					prStartMouse = prEndMouse = make_pair(0, 0);
+					deleteSelect();
 				}
 				else{
-					if(prCursorPos.second != url.length()) url.erase(prCursorPos.second, 1);
+					if(cursorPos.second < file.lines[cursorPos.first].length()){
+						file.lines[cursorPos.first].erase(cursorPos.second, 1);
+					}
+					else if(cursorPos.first + 1 < file.lines.size()){
+						file.lines[cursorPos.first] += file.lines[cursorPos.first + 1];
+						file.erase(cursorPos.first + 1, 1);
+					}
 				}
 			}
 			else if(wch == 71){ // Home
-				prCursorPos.second = urlHeadLength;
+				if(isSelecting){
+					if(selectEnd < selectStart) swap(selectStart, selectEnd);
+					cursorPos = selectEnd = selectStart;
+					isSelecting = 0;
+				}
+				cursorPos.second = 0;
 			}
 			else if(wch == 79){ // End
-				prCursorPos.second = url.length();
+				if(isSelecting){
+					if(selectEnd < selectStart) swap(selectStart, selectEnd);
+					cursorPos = selectStart = selectEnd;
+					isSelecting = 0;
+				}
+				cursorPos.second = file.lines[cursorPos.first].length();
 			}
 		}
+		/*
 		else{
 			string inp = tWchar_to_gbk(wch);
 			if(isSelecting){
