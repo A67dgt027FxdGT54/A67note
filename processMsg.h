@@ -123,6 +123,7 @@ void processMsgCl(){
 					curPage.curFile.lines.push_back(_tmp);
 				}
 				curPage.type = 0;
+				curPage.curFile.initCharType();
 				wlog("INFO", "Request for path " + curPage.path + " and return status 200");
 			}
 			else if(status == 204){
@@ -133,6 +134,7 @@ void processMsgCl(){
 					ss >> path;
 					if(path != curPage.path) return;
 					curPage.curFile.lines = {""};
+					curPage.curFile.charType = {{}};
 					curPage.type = 0;
 					wlog("INFO", "Request for path " + curPage.path + " and return status 204 get_no_content");
 				}

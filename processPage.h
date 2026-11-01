@@ -65,6 +65,21 @@ namespace nsProcessNormalPage{
 		clampPosOfAPair(cursorPos, 1);
 		clampPosOfAPair(selectStart, 0);
 		clampPosOfAPair(selectEnd, 0);
+		if(selectStart < selectEnd){
+			if(selectStart.second > 0 && file.charType[selectStart.first][selectStart.second] == 2) selectStart.second--;
+			if(selectEnd.second > 0 && file.charType[selectEnd.first][selectEnd.second] == 1) selectEnd.second--;
+		} 
+		else if(selectStart == selectEnd){
+			if(file.charType[selectStart.first][selectStart.second] == 1){
+				if(selectEnd.second + 1 < file.lines[selectEnd.first].length()) selectEnd.second++;
+			}
+			else if(file.charType[selectStart.first][selectStart.second] == 2){
+				if(selectStart.second > 0) selectStart.second--;
+			}
+		}
+		if(cursorPos.second < file.charType[cursorPos.first].size() && file.charType[cursorPos.first][cursorPos.second] == 2){
+			cursorPos.second++;
+		}
 	}
 	// 									REMEMBER TO KEEP `scroll` POSITIVE
 	void deleteSelect(){
@@ -73,10 +88,20 @@ namespace nsProcessNormalPage{
 		}
 		if(selectStart.first == selectEnd.first){
 			file.lines[selectStart.first].erase(selectStart.second, selectEnd.second - selectStart.second + 1);
+			file.charType[selectStart.first].erase(
+				file.charType[selectStart.first].begin() + selectStart.second, 
+				file.charType[selectStart.first].begin() + selectEnd.second + 1
+			);
 		}
 		else{
 			file.lines[selectStart.first].erase(selectStart.second);
+			file.charType[selectStart.first].erase(file.charType[selectStart.first].begin() + selectStart.second);
 			file.lines[selectStart.first] += file.lines[selectEnd.first].substr(selectEnd.second + 1);
+			file.charType[selectStart.first].insert(
+				file.charType[selectStart.first].end(),
+				file.charType[selectEnd.first].begin() + selectEnd.second + 1,
+				file.charType[selectEnd.first].end()
+			);
 			if(selectStart.first < selectEnd.first){
 				file.erase(selectStart.first + 1, selectEnd.first - selectStart.first);
 			}
@@ -98,11 +123,29 @@ namespace nsProcessNormalPage{
 			}
 			else{
 				if(cursorPos.second > 0){
-					file.lines[cursorPos.first].erase(--cursorPos.second, 1);
+					if(file.charType[cursorPos.first][cursorPos.second - 1] == 0)
+						file.lines[cursorPos.first].erase(--cursorPos.second, 1),
+						file.charType[cursorPos.first].erase(
+							file.charType[cursorPos.first].begin() + cursorPos.second,
+							file.charType[cursorPos.first].begin() + cursorPos.second + 1
+						);
+					else(file.charType[cursorPos.first][cursorPos.second - 1] == 2){
+						cursorPos.second -= 2;
+						file.lines[cursorPos.first].erase(cursorPos.second, 2);
+						file.charType[cursorPos.first].erase(
+							file.charType[cursorPos.first].begin() + cursorPos.second,
+							file.charType[cursorPos.first].begin() + cursorPos.second + 2
+						);
+					}
 				}
 				else if(cursorPos.first > 0){
 					int len = file.lines[cursorPos.first - 1].length();
 					file.lines[cursorPos.first - 1] += file.lines[cursorPos.first];
+					file.charType[cursorPos.first - 1].insert(
+						file.charType[cursorPos.first - 1].end(),
+						file.charType[cursorPos.first].begin(),
+						file.charType[cursorPos.first].end()
+					);
 					file.erase(cursorPos.first, 1);
 					cursorPos.first--; cursorPos.second = len;
 				}
@@ -112,6 +155,7 @@ namespace nsProcessNormalPage{
 			if(isSelecting) deleteSelect();
 			file.insert(cursorPos.first + 1, file.lines[cursorPos.first].substr(cursorPos.second));
 			file.lines[cursorPos.first].erase(cursorPos.second);
+			file.charType[cursorPos.first].erase(file.charType[cursorPos.first].begin() + cursorPos.second);
 			cursorPos.first++; cursorPos.second = 0;
 		}
 		else if(wch == 224 || wch == 0){
@@ -125,7 +169,10 @@ namespace nsProcessNormalPage{
 				if(cursorPos.second == 0){
 					if(cursorPos.first > 0) cursorPos.second = file.lines[--cursorPos.first].length();
 				}
-				else cursorPos.second--;
+				else{
+					if(cursorPos.second > 0 && file.charType[cursorPos.first][cursorPos.second - 1] == 0) cursorPos.second--;
+					else cursorPos.second -= 2;
+				}
 			}
 			else if(wch == 77){ // R Arrow
 				if(isSelecting){
@@ -136,7 +183,13 @@ namespace nsProcessNormalPage{
 				if(cursorPos.second == file.lines[cursorPos.first].length()){
 					if(cursorPos.first + 1 < file.lines.size()) cursorPos.second = 0, cursorPos.first++;
 				}
-				else cursorPos.second++;
+				else{
+					if(
+						cursorPos.second + 1 == file.lines[cursorPos.first].length() || 
+						file.charType[cursorPos.first][cursorPos.second + 1] == 0
+					) cursorPos.second++;
+					else cursorPos.second += 2;
+				}
 			}
 			else if(wch == 72){ // U Arrow
 				// no-desiredCol is expected
@@ -157,7 +210,7 @@ namespace nsProcessNormalPage{
 				if(cursorPos.first + 1 < file.lines.size()) cursorPos.first++,
 				clampPos();
 			}
-			else if(wch == 83){ // Delete
+			else if(wch == 83){ // Delete // TODO from here
 				if(isSelecting){
 					deleteSelect();
 				}

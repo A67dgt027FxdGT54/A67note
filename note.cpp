@@ -84,13 +84,15 @@ struct File{
 		string sTempLine;
 		if(!ifsFile.is_open()){
 			lines = {""};
+			charType = {{}}; 
 			return false;
 		} 
 		while(getline(ifsFile, sTempLine)){
 			if(sTempLine.size() && sTempLine.back() == '\r') sTempLine.pop_back();
 			lines.push_back(sTempLine);
 		}
-		if(lines.size() == 0) {lines = {""}; return false;}
+		if(lines.size() == 0) {lines = {""}; charType = {{}}; return false;}
+		initCharType();
 		return true;
 	}
 	void initCharType(){
@@ -110,9 +112,19 @@ struct File{
 	}
 	void erase(int start, int count){
 		lines.erase(lines.begin() + start, lines.begin() + start + count);
+		charType.erase(lines.begin() + start, lines.begin() + start + count);
 	}
 	void insert(int index, const std::string& value){
+		vector<int> ct(value.length());
+		for(int i = 0; i < value.length(); i++){
+			if(value[i] >= 0) ct[i] = 0;
+			else{
+				ct[i] = 1;
+				if(i + 1 < value.size()) ct[++i] = 2;
+			}
+		}
 		lines.insert(lines.begin() + index, value);
+		charType.insert(charType.begin() + index, ct.begin(), ct.end());
 	}
 };
 void requestForPage(const string& path){
