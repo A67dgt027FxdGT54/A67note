@@ -3,8 +3,6 @@
 #include "TUI.h" 
 using namespace std;
 
-// bugs: https://chat.deepseek.com/share/m9cgztutwrv5h2wvg2
-
 void wlog(std::string level,std::string msg){
 	std::ofstream _log("note.log",std::ios::app);
     std::time_t now = std::time(nullptr);
@@ -79,6 +77,7 @@ void banUser(unsigned long long sock){
 
 struct File{
 	vector<string> lines = {""};
+	vector<vector<int> > charType = {{}}; 
 	bool loadFromFile(string path){
 		lines.clear();
 		ifstream ifsFile(path);
@@ -93,6 +92,21 @@ struct File{
 		}
 		if(lines.size() == 0) {lines = {""}; return false;}
 		return true;
+	}
+	void initCharType(){
+		charType = vector<vector<int> >(lines.size());
+		for(int i = 0; i < lines.size(); i++){
+			charType[i].resize(lines[i].size());
+			for(int j = 0; j < lines[i].size(); j++){
+				if(lines[i][j] >= 0){ // ASCII
+					charType[i][j] = 0;
+				} 
+				else{
+					charType[i][j] = 1; // first byte of GBK
+					if(j + 1 < lines[i].size()) charType[i][++j] = 2; // second byte of GBK
+				}
+			}
+		}
 	}
 	void erase(int start, int count){
 		lines.erase(lines.begin() + start, lines.begin() + start + count);

@@ -16,6 +16,10 @@ namespace nsProcessNormalPage{
 	pair<int, int> screenSpaceToTextSpace(pair<int, int> pr){
 		return make_pair(pr.first - 2 + scroll.first, pr.second + scroll.second);
 	}
+	
+	pair<int, int> textSpaceToScreenSpace(pair<int, int> pr){
+		return make_pair(pr.first + 2 - scroll.first, pr.second - scroll.second);
+	}
 	void setupMouseInfo(){
 		mousePos = tGetMousePosChar();
 		isPressingMouseLeft = GetAsyncKeyState(1) & 0x8000;
@@ -184,35 +188,28 @@ namespace nsProcessNormalPage{
 				cursorPos.second = file.lines[cursorPos.first].length();
 			}
 		}
-		/*
 		else{
 			string inp = tWchar_to_gbk(wch);
 			if(isSelecting){
-				if(prEndMouse.second < prStartMouse.second){
-					url.erase(prEndMouse.second, prStartMouse.second - prEndMouse.second + 1);
-					url.insert(prEndMouse.second, inp);
-					prCursorPos.second = prEndMouse.second + inp.length();
-				} 
-				else {
-					url.erase(prStartMouse.second, prEndMouse.second - prStartMouse.second + 1);
-					url.insert(prStartMouse.second, inp);
-					prCursorPos.second = prStartMouse.second + inp.length();
-				}
-				isSelecting = 0;
-				prStartMouse = prEndMouse = make_pair(0, 0);
+				deleteSelect(); 
 			}
-			else{
-				url.insert(prCursorPos.second, inp);
-				prCursorPos.second += inp.length();
-			} 
+			file.lines[cursorPos.first].insert(cursorPos.second, inp);
 		}
-		*/
+	}
+	void outputCursor(){
+		pair<int, int> cp = textSpaceToScreenSpace(cursorPos);
+		
 	}
 	void processNormalPage(){
 		setupMouseInfo();
 		processMouseInput();
 		clampPos();
 		processInput();
+		clampPos();
+		tEnable(T_SCISSOR_TEST);
+		tScissor(2, 0, 26, 120);
+		outputCursor();
+		tDisable(T_SCISSOR_TEST);
 	}
 } 
 
