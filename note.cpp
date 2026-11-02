@@ -75,6 +75,18 @@ void banUser(unsigned long long sock){
 	cl.send_msg(_msg, svSocket); \
 }while(0)
 
+vector<int> calcCharType(const std::string& value){
+	vector<int> ct(value.length());
+	for(int i = 0; i < value.length(); i++){
+		if(value[i] >= 0) ct[i] = 0;
+		else{
+			ct[i] = 1;
+			if(i + 1 < value.size()) ct[++i] = 2;
+		}
+	}
+	return ct;
+}
+
 struct File{
 	vector<string> lines = {""};
 	vector<vector<int> > charType = {{}}; 
@@ -98,33 +110,17 @@ struct File{
 	void initCharType(){
 		charType = vector<vector<int> >(lines.size());
 		for(int i = 0; i < lines.size(); i++){
-			charType[i].resize(lines[i].size());
-			for(int j = 0; j < lines[i].size(); j++){
-				if(lines[i][j] >= 0){ // ASCII
-					charType[i][j] = 0;
-				} 
-				else{
-					charType[i][j] = 1; // first byte of GBK
-					if(j + 1 < lines[i].size()) charType[i][++j] = 2; // second byte of GBK
-				}
-			}
+			charType[i] = calcCharType(lines[i]);
 		}
 	}
 	void erase(int start, int count){
 		lines.erase(lines.begin() + start, lines.begin() + start + count);
-		charType.erase(lines.begin() + start, lines.begin() + start + count);
+		charType.erase(charType.begin() + start, charType.begin() + start + count);
 	}
 	void insert(int index, const std::string& value){
-		vector<int> ct(value.length());
-		for(int i = 0; i < value.length(); i++){
-			if(value[i] >= 0) ct[i] = 0;
-			else{
-				ct[i] = 1;
-				if(i + 1 < value.size()) ct[++i] = 2;
-			}
-		}
+		auto ct = calcCharType(value);
 		lines.insert(lines.begin() + index, value);
-		charType.insert(charType.begin() + index, ct.begin(), ct.end());
+		charType.insert(charType.begin() + index, ct);
 	}
 };
 void requestForPage(const string& path){
