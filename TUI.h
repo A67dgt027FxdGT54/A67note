@@ -89,6 +89,55 @@ void t__SetOutputCol(tCol col){
 	SetConsoleTextAttribute(hOutput, col);
 }
 
+
+namespace t__Kbcompat{
+	std::deque<wchar_t> pending;
+	
+	HANDLE h = GetStdHandle(STD_INPUT_HANDLE);
+	
+	bool nextKeyEvent(wchar_t& wch, WORD& vscan){
+		INPUT_RECORD ir;
+		DWORD total = 0, read = 0;
+		
+		while(GetNumberOfConsoleInputEvents(h, &total) && total > 0){
+			if(!ReadConsoleInputW(h, &ir, 1, &read)) return false;
+			if(ir.EventType != KEY_EVENT) continue;
+			if(!ir.Event.KeyEvent.bKeyDown) continue;
+			wch = ir.Event.KeyEvent.uChar.UnicodeChar;
+			vscan = ir.Event.KeyEvent.wVirtualScanCode;
+			return true;
+		}
+		return false;
+	}
+}
+
+int tKbhit(){
+	if(!t__Kbcompat::pending.empty()) return 1;
+	DWORD total = 0;
+	if(!GetNumberOfConsoleInputEvents(t__Kbcompat::h, &total) || total == 0) return 0;
+	if(total > 512) total = 512;
+	INPUT_RECORD buf[512];
+	DWORD n = 0;
+	if(!PeekConsoleInputW(t__Kbcompat::h, buf, total, &n)) return 0;
+	for(DWORD i=0;i<n;i++)
+		if(buf[i].EventType == KEY_EVENT && buf[i].Event.KeyEvent.bKeyDown) return 1;
+	return 0;
+}
+
+wchar_t tGetwch(){
+	if(!t__Kbcompat::pending.empty()){
+		wchar_t c = t__Kbcompat::pending.front();
+		t__Kbcompat::pending.pop_front();
+		return c;
+	}
+	wchar_t wch = 0;
+	WORD wscan = 0;
+	if(!t__Kbcompat::nextKeyEvent(wch, wscan)) return 0;
+	if(wch != 0) return wch;
+	t__Kbcompat::pending.push_back(static_cast<wchar_t>(wscan));
+	return 224;
+}
+
 tErr tEnable(tEnum func){
 	if(func < 0x0100){
 		if(func == T_QUICKEDIT){
@@ -191,8 +240,8 @@ bool t__PxShouldDiscard(int r, int c){
 
 std::wstring tInputBuf;
 bool tInput(){
-	if(_kbhit()){
-		wchar_t wch = _getwch();
+	if(tKbhit()){
+		wchar_t wch = tGetwch();
 		char ch = 65;
 		std::string wchs = tWchar_to_gbk(wch);
 		if(wchs.length() == 1) ch = wchs[0];
@@ -313,5 +362,7 @@ public:
 	tTempStatus_t(tTempStatus_t&& o) = delete;
 	tTempStatus_t& operator =(tTempStatus_t&& o) = delete;
 };
+
+
 
 #endif // __A67_TUI_H

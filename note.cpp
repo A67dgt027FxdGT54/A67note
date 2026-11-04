@@ -89,6 +89,11 @@ vector<int> calcCharType(const std::string& value){
 
 struct File{
 	vector<string> lines = {""};
+	/*  Type of the char.
+	 *  0 = ASCII
+	 *  1 = GBK(first byte)
+	 *  2 = GBK(second byte)
+	 */ 
 	vector<vector<int> > charType = {{}}; 
 	bool loadFromFile(string path){
 		lines.clear();

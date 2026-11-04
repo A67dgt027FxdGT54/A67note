@@ -3,6 +3,20 @@
 int focus = -1;
 // 0 = url, 1 = main
 
+
+/*    
+ *  TIPS:
+ *		cursorPos is the pos of char, instead of the gap.
+ *      e.g. when cursorPos = (0, 1):
+ *			0 1 2 3
+ *          a[b]c d
+ *           ~~~ cursor block
+ *			 insert:
+ *			0 1 2 3 4
+ *			a i[b]c d
+ *             ~~~ cursor block
+ */
+
 namespace nsProcessNormalPage{
 	bool isPressedLastFrame = false;
 	bool isSelecting = false;
@@ -52,6 +66,7 @@ namespace nsProcessNormalPage{
 	void clampPosOfAPair(pair<int, int>& pr, bool allowSelectAtEnd){
 		if(file.lines.empty()) {
 			file.lines = {""};
+			file.charType = {{}};
 			pr = make_pair(0, 0);
 			return;
 		} 
@@ -62,7 +77,7 @@ namespace nsProcessNormalPage{
 			if(pr.second > file.lines[pr.first].length()) pr.second = file.lines[pr.first].length();
 		}
 		else{
-			if(pr.second >= file.lines[pr.first].length()) pr.second = file.lines[pr.first].length() - 1;
+			if(pr.second >= file.lines[pr.first].length()) pr.second = static_cast<int>(file.lines[pr.first].length()) - 1;
 		}
 		if(pr.second < 0) pr.second = 0;
 	}
@@ -93,7 +108,11 @@ namespace nsProcessNormalPage{
 			){
 				selectEnd.second++;
 			}
-			else if(selectStart.second > 0 && file.charType[selectStart.first][selectStart.second] == 2){
+			else if(
+				selectStart.second > 0 && 
+				selectStart.second < file.charType[selectStart.first].size() && 
+				file.charType[selectStart.first][selectStart.second] == 2
+			){
 				selectStart.second--;
 			}
 		}
@@ -118,7 +137,10 @@ namespace nsProcessNormalPage{
 		}
 		else{
 			file.lines[selectStart.first].erase(selectStart.second);
-			file.charType[selectStart.first].erase(file.charType[selectStart.first].begin() + selectStart.second);
+			file.charType[selectStart.first].erase(
+				file.charType[selectStart.first].begin() + selectStart.second, 
+				file.charType[selectStart.first].end()
+			);
 			file.lines[selectStart.first] += file.lines[selectEnd.first].substr(selectEnd.second + 1);
 			file.charType[selectStart.first].insert(
 				file.charType[selectStart.first].end(),
@@ -134,9 +156,10 @@ namespace nsProcessNormalPage{
 	}
 	void processInput(){
 		wlog("DEBUG", "call processInput()");
-		if(focus != 1 || !_kbhit()) return;
+		if(focus != 1 || !tKbhit()) return;
 		
-		wchar_t wch = _getwch();
+		wchar_t wch = tGetwch();
+		
 		string chs = tWchar_to_gbk(wch);
 		char ch = 65;
 		if(chs.length() == 1) ch = chs[0];
@@ -177,13 +200,21 @@ namespace nsProcessNormalPage{
 		}
 		else if(ch == '\r' || ch == '\n'){
 			if(isSelecting) deleteSelect();
-			file.insert(cursorPos.first + 1, file.lines[cursorPos.first].substr(cursorPos.second));
-			file.lines[cursorPos.first].erase(cursorPos.second);
-			file.charType[cursorPos.first].erase(file.charType[cursorPos.first].begin() + cursorPos.second);
+			if(cursorPos.second == file.lines[cursorPos.first].size()){
+				file.insert(cursorPos.first + 1, "");
+			}
+			else{
+				file.insert(cursorPos.first + 1, file.lines[cursorPos.first].substr(cursorPos.second));
+				file.lines[cursorPos.first].erase(cursorPos.second);
+				file.charType[cursorPos.first].erase(
+					file.charType[cursorPos.first].begin() + cursorPos.second, 
+					file.charType[cursorPos.first].end()
+				);
+			}
 			cursorPos.first++; cursorPos.second = 0;
 		}
 		else if(wch == 224 || wch == 0){
-			wch = _getwch();
+			wch = tGetwch();
 			if(wch == 75){ // L Arrow
 				if(isSelecting){
 					if(selectEnd < selectStart) swap(selectStart, selectEnd);
@@ -210,7 +241,7 @@ namespace nsProcessNormalPage{
 				else{
 					if(
 						cursorPos.second + 1 == file.lines[cursorPos.first].length() || 
-						file.charType[cursorPos.first][cursorPos.second + 1] == 0
+						file.charType[cursorPos.first][cursorPos.second] == 0
 					) cursorPos.second++;
 					else cursorPos.second += 2;
 				}
@@ -302,18 +333,19 @@ namespace nsProcessNormalPage{
 		wlog("DEBUG", "call outputCursor()");
 		pair<int, int> cp = textSpaceToScreenSpace(cursorPos);
 		if(focus == 1 && (time(0) & 1)){
-			tTempStatus_t ts{T_BLEND, 0};
+			tDisable(T_BLEND);
 			tSetOutputCol(0xAF);
-			if(file.charType[cp.first][cp.second] == 1){
+			if(cursorPos.second < file.charType[cursorPos.first].size() && file.charType[cursorPos.first][cursorPos.second] == 1){
 				tOutput("  ", cp.first, cp.second);
 			}
 			else tOutput(" ", cp.first, cp.second);
+			tEnable(T_BLEND);
 		}
 	}
 	void outputSelect(){
 		wlog("DEBUG", "call outputSelect()");
 		if(focus == 1 && isSelecting){
-			tTempStatus_t ts{T_BLEND, 0};
+			tDisable(T_BLEND);
 			tSetOutputCol(0x1F);
 			pair<int, int> s = textSpaceToScreenSpace(selectStart), e = textSpaceToScreenSpace(selectEnd);
 			if(s > e) swap(s, e);
@@ -326,12 +358,22 @@ namespace nsProcessNormalPage{
 			}
 			else{
 				int se = textSpaceToScreenSpace(
-					make_pair(0, file.lines[s.first].length())
+					make_pair(0, file.lines[selectStart.first].length())
 				).second,
 				es = textSpaceToScreenSpace(make_pair(0, 0)).second;
 				tOutput(string(se - s.second + 1, ' '), s.first, s.second);
 				tOutput(string(e.second - es + 1, ' '), e.first, es);
+				
+				for(int i = s.first + 1; i < e.first; i++){
+					int l = screenSpaceToTextSpace(make_pair(i, 0)).first;
+					tOutput(
+						string(file.lines[l].length() + 1, ' '),
+						i,
+						0
+					);
+				}
 			}
+			tEnable(T_BLEND);
 		}
 	}
 	void outputText(){
@@ -340,6 +382,13 @@ namespace nsProcessNormalPage{
 			pair<int, int> pos = textSpaceToScreenSpace(make_pair(i, 0));
 			tOutput(file.lines[i], pos.first, pos.second);
 		}
+	}
+	void outputFunctions(){
+		tOutput(string(120, '='), 28, 0);
+		// FIRST TODO: ASK MY SISTER ABOUT
+		//     WHAT IS IN THE PHONE
+		//     WHY DO YOU LIKE TO PLAY PHONE
+		//	   WHAT CAN INSTEAD IT
 	}
 	void processNormalPage(){
 		wlog("DEBUG", "call processNormalPage()");
@@ -355,6 +404,7 @@ namespace nsProcessNormalPage{
 		tSetOutputCol(0x0F);
 		outputText();
 		tDisable(T_SCISSOR_TEST);
+		outputFunctions();
 	}
 } 
 
@@ -431,8 +481,8 @@ namespace nsProcessURLInput{
 		if(prEndMouse.second < urlHeadLength) prEndMouse.second = urlHeadLength;
 		
 		// input
-		if(focus == 0 && _kbhit()){
-			wchar_t wch = _getwch();
+		if(focus == 0 && tKbhit()){
+			wchar_t wch = tGetwch();
 			string chs = tWchar_to_gbk(wch);
 			char ch = 65;
 			if(chs.length() == 1) ch = chs[0];
@@ -460,7 +510,7 @@ namespace nsProcessURLInput{
 				}
 			}
 			else if(wch == 224){
-				wch = _getwch();
+				wch = tGetwch();
 				if(wch == 75){ // L Arrow
 					prCursorPos.second--;
 				}
