@@ -47,6 +47,24 @@ namespace nsProcessNormalPage{
 	pair<int, int> textSpaceToScreenSpace(pair<int, int> pr){
 		return make_pair(pr.first + 2 - scroll.first, pr.second - scroll.second);
 	}
+	
+	string alertMsg = "";
+	tCol alertCol = 0x0F; 
+	void processAlert(){
+		int oCol = tOutputCol;
+		tSetOutputCol(alertCol);
+		tOutput(
+			alertMsg,
+			29,
+			120 - alertMsg.length()
+		);
+		tSetOutputCol(oCol);
+	}
+	void alert(tCol col, const string& msg){
+		alertCol = col;
+		alertMsg = msg;
+	}
+	
 	void setupMouseInfo(){
 		wlog("DEBUG", "call setupMouseInfo()");
 		mousePos = tGetMousePosChar();
@@ -418,7 +436,7 @@ namespace nsProcessNormalPage{
 			tOutput(file.lines[i], pos.first, pos.second);
 		}
 	}
-	void cut(){
+	void cutCallback(){
 		if(!isSelecting || selectStart == selectEnd) return;
 		
 		string cbt;
@@ -437,6 +455,27 @@ namespace nsProcessNormalPage{
 		}
 		tSetClipboardTextGbk(cbt);
 		deleteSelect();
+		alert(0x0A, "剪切成功");
+	}
+	void copyCallback(){
+		if(!isSelecting || selectStart == selectEnd) return;
+		
+		string cbt;
+		if(selectStart > selectEnd) swap(selectStart, selectEnd);
+		
+		if(selectStart.first == selectEnd.first) cbt = file.lines[selectStart.first].substr(
+			selectStart.second, 
+			selectEnd.second - selectStart.second + 1
+		);
+		else{
+			cbt += file.lines[selectStart.first].substr(selectStart.second) + "\n";
+			for(int i = selectStart.first + 1; i < selectEnd.first; i++){
+				cbt += file.lines[i] + "\n";
+			}
+			cbt += file.lines[selectEnd.first].substr(0, selectEnd.second + 1);
+		}
+		tSetClipboardTextGbk(cbt);
+		alert(0x0A, "复制成功");
 	}
 	void setupFunctions(){
 		wlog("DEBUG", "setupFunctions()");
@@ -454,7 +493,8 @@ namespace nsProcessNormalPage{
 			);
 		}
 		
-		btns[0].setClickCallback(cut);
+		btns[0].setClickCallback(cutCallback);
+		btns[1].setClickCallback(copyCallback);
 	} 
 	void outputFunctions(){
 		tOutput(string(120, '='), 28, 0);
@@ -477,6 +517,7 @@ namespace nsProcessNormalPage{
 		outputText();
 		tDisable(T_SCISSOR_TEST);
 		outputFunctions();
+		processAlert();
 	}
 } 
 
