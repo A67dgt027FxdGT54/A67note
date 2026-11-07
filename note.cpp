@@ -181,9 +181,11 @@ struct CurPageData{
 	}
 }curPage;
 
+namespace nsProcessNormalPage{void setupFunctions();}
 
 int main(){
 	setup();
+	nsProcessNormalPage::setupFunctions();
 	showSetupUI();
 	
 	

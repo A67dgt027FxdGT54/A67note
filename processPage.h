@@ -27,6 +27,19 @@ namespace nsProcessNormalPage{
 	
 	File& file = curPage.curFile;
 	
+	vector<tButton_t> btns = vector<tButton_t>{
+		tButton_t(29, 0, "剪切", 0x0F),
+		tButton_t(29, 6, "复制", 0x0F),
+		tButton_t(29, 12, "粘贴", 0x0F),
+		tButton_t(29, 18, "全选", 0x0F),
+		tButton_t(29, 24, "保存", 0x0F),
+		tButton_t(29, 30, "刷新", 0x0F),
+		tButton_t(29, 36, "向上滚动", 0x0F),
+		tButton_t(29, 46, "向下滚动", 0x0F),
+		tButton_t(29, 56, "向左滚动", 0x0F),
+		tButton_t(29, 66, "向右滚动", 0x0F)
+	};
+	
 	pair<int, int> screenSpaceToTextSpace(pair<int, int> pr){
 		return make_pair(pr.first - 2 + scroll.first, pr.second + scroll.second);
 	}
@@ -102,20 +115,35 @@ namespace nsProcessNormalPage{
 			) selectEnd.second--;
 		} 
 		else if(selectStart == selectEnd){
+//			if(
+//				selectEnd.second > 0 &&
+//				selectEnd.second < file.lines[selectEnd.first].length() &&
+//				file.charType[selectEnd.first][selectEnd.second] == 1
+//			){
+//				selectEnd.second--;
+//			}
+//			else if(
+//				selectStart.second > 0 && 
+//				selectStart.second + 1 < file.charType[selectStart.first].size() && 
+//				file.charType[selectStart.first][selectStart.second] == 2
+//			){
+//				selectStart.second++;
+//			}
+			selectStart = selectEnd = cursorPos;
+		}
+		else {
 			if(
-				selectEnd.second + 1 < file.lines[selectEnd.first].length() &&
-				file.charType[selectStart.first][selectStart.second] == 1
-			){
-				selectEnd.second++;
-			}
-			else if(
 				selectStart.second > 0 && 
 				selectStart.second < file.charType[selectStart.first].size() && 
-				file.charType[selectStart.first][selectStart.second] == 2
-			){
-				selectStart.second--;
-			}
-		}
+				file.charType[selectStart.first][selectStart.second] == 1
+			) selectStart.second--;
+			
+			if(
+				selectEnd.second > 0 && 
+				selectEnd.second < file.charType[selectEnd.first].size() &&
+				file.charType[selectEnd.first][selectEnd.second] == 2
+			) selectEnd.second--;
+		} 
 		wlog("DEBUG", "clampPos() clamp cursorPos");
 		if(cursorPos.second < file.charType[cursorPos.first].size() && file.charType[cursorPos.first][cursorPos.second] == 2){
 			cursorPos.second++;
@@ -141,12 +169,13 @@ namespace nsProcessNormalPage{
 				file.charType[selectStart.first].begin() + selectStart.second, 
 				file.charType[selectStart.first].end()
 			);
-			file.lines[selectStart.first] += file.lines[selectEnd.first].substr(selectEnd.second + 1);
-			file.charType[selectStart.first].insert(
-				file.charType[selectStart.first].end(),
-				file.charType[selectEnd.first].begin() + selectEnd.second + 1,
-				file.charType[selectEnd.first].end()
-			);
+			if(selectEnd.second + 1 < file.lines[selectEnd.first].length())
+				file.lines[selectStart.first] += file.lines[selectEnd.first].substr(selectEnd.second + 1), 
+				file.charType[selectStart.first].insert(
+					file.charType[selectStart.first].end(),
+					file.charType[selectEnd.first].begin() + selectEnd.second + 1,
+					file.charType[selectEnd.first].end()
+				);
 			if(selectStart.first < selectEnd.first){
 				file.erase(selectStart.first + 1, selectEnd.first - selectStart.first);
 			}
@@ -348,7 +377,8 @@ namespace nsProcessNormalPage{
 			tDisable(T_BLEND);
 			tSetOutputCol(0x1F);
 			pair<int, int> s = textSpaceToScreenSpace(selectStart), e = textSpaceToScreenSpace(selectEnd);
-			if(s > e) swap(s, e);
+			bool bSwap = 0;
+			if(s > e) swap(s, e), bSwap = 1;
 			if(s.first == e.first){
 				tOutput(
 					string(e.second - s.second + 1, ' '),
@@ -358,11 +388,16 @@ namespace nsProcessNormalPage{
 			}
 			else{
 				int se = textSpaceToScreenSpace(
-					make_pair(0, file.lines[selectStart.first].length())
+					make_pair(0, bSwap? file.lines[selectEnd.first].length(): file.lines[selectStart.first].length())
 				).second,
 				es = textSpaceToScreenSpace(make_pair(0, 0)).second;
-				tOutput(string(se - s.second + 1, ' '), s.first, s.second);
-				tOutput(string(e.second - es + 1, ' '), e.first, es);
+//				try{
+				tOutput(string(max(0, se - s.second + 1), ' '), s.first, s.second);
+				tOutput(string(max(0, e.second - es + 1), ' '), e.first, es);
+//				}catch(std::length_error){
+//					cout << "@";
+//					throw;
+//				}
 				
 				for(int i = s.first + 1; i < e.first; i++){
 					int l = screenSpaceToTextSpace(make_pair(i, 0)).first;
@@ -383,12 +418,49 @@ namespace nsProcessNormalPage{
 			tOutput(file.lines[i], pos.first, pos.second);
 		}
 	}
+	void cut(){
+		if(!isSelecting || selectStart == selectEnd) return;
+		
+		string cbt;
+		if(selectStart > selectEnd) swap(selectStart, selectEnd);
+		
+		if(selectStart.first == selectEnd.first) cbt = file.lines[selectStart.first].substr(
+			selectStart.second, 
+			selectEnd.second - selectStart.second + 1
+		);
+		else{
+			cbt += file.lines[selectStart.first].substr(selectStart.second) + "\n";
+			for(int i = selectStart.first + 1; i < selectEnd.first; i++){
+				cbt += file.lines[i] + "\n";
+			}
+			cbt += file.lines[selectEnd.first].substr(0, selectEnd.second + 1);
+		}
+		tSetClipboardTextGbk(cbt);
+		deleteSelect();
+	}
+	void setupFunctions(){
+		wlog("DEBUG", "setupFunctions()");
+		
+		for(int i=0;i<btns.size();i++){
+			btns[i].setHoverCallback(
+				[i](){
+					btns[i].setCol(0x8F);
+				}
+			);
+			btns[i].setUnhoverCallback(
+				[i](){
+					btns[i].setCol(0x0F);
+				}
+			);
+		}
+		
+		btns[0].setClickCallback(cut);
+	} 
 	void outputFunctions(){
 		tOutput(string(120, '='), 28, 0);
-		// FIRST TODO: ASK MY SISTER ABOUT
-		//     WHAT IS IN THE PHONE
-		//     WHY DO YOU LIKE TO PLAY PHONE
-		//	   WHAT CAN INSTEAD IT
+		for(int i=0;i<btns.size();i++){
+			btns[i].process();
+		}
 	}
 	void processNormalPage(){
 		wlog("DEBUG", "call processNormalPage()");

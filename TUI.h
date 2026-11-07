@@ -78,6 +78,14 @@ std::wstring tGbk_to_wstring(const std::string& gbkStr){
 	return wstr;
 }
 
+void tLog(std::string level,std::string msg){
+	std::ofstream _log("TUI.log",std::ios::app);
+    std::time_t now = std::time(nullptr);
+    char time_buf[20];
+    std::strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", std::localtime(&now));
+    _log << "[" << time_buf << "] [" <<level<<"] "<<msg<<std::endl;
+}
+
 void t__SetCursorPos(int r, int c){
 	HANDLE hOutput = GetStdHandle(STD_OUTPUT_HANDLE);
 	COORD _pos;
@@ -284,10 +292,10 @@ void tPause(){
 		tUuTmp = tUuTmp * 114514 + 7891;
 	}
 }
-char tChoose(std::string list){
+char tChoose(const std::string& list){
 	char ch = _getch();
 	while(([&]()->bool{
-		for(char& c: list){
+		for(const char& c: list){
 			if(c == ch) return false;
 		}
 		return true;
@@ -324,7 +332,7 @@ bool tSetClipboardText(const std::wstring& text){
 	return true;
 }
 bool tSetClipboardTextGbk(const std::string& gbkText){
-	tSetClipboardText(tGbk_to_wstring(gbkText));
+	return tSetClipboardText(tGbk_to_wstring(gbkText));
 }
 std::pair<int, int> tGetMousePosChar(){
 	COORD fontSz = GetConsoleFontSize(GetStdHandle(STD_OUTPUT_HANDLE), 0);
@@ -363,6 +371,96 @@ public:
 	tTempStatus_t& operator =(tTempStatus_t&& o) = delete;
 };
 
+struct tButton_t{
+private:
+	int r = 0, c = 0;
+	std::string text;
+	tCol col = 0x01;
+	std::function<void(void)> click_callback, drag_callback, hover_callback, unclick_callback, undrag_callback, unhover_callback;
+	bool lastMouse = 0;
+public:
+	tButton_t() = default;
+	tButton_t(int _r, int _c, const std::string& _t, tCol _col): r(_r), c(_c), text(_t), col(_col){}
+	void setClickCallback(const std::function<void(void)>& cb){
+		click_callback = cb;
+	}
+	void setDragCallback(const std::function<void(void)>& cb){
+		drag_callback = cb;
+	}
+	void setHoverCallback(const std::function<void(void)>& cb){
+		hover_callback = cb;
+	}
+	void setUnclickCallback(const std::function<void(void)>& cb){
+		unclick_callback = cb;
+	}
+	void setUndragCallback(const std::function<void(void)>& cb){
+		undrag_callback = cb;
+	}
+	void setUnhoverCallback(const std::function<void(void)>& cb){
+		unhover_callback = cb;
+	}
+	void process(){
+		tCol oCol = tOutputCol;
+		bool blend = tEnabledBits[T_BLEND - 0x100];
+		tSetOutputCol(col);
+		tDisable(T_BLEND);
+		tOutput(text, r, c);
+		tSetOutputCol(oCol);
+		if(blend) tEnable(T_BLEND);
+		if(tIsMouseInArea(r, c, 1, text.length())){
+			if(hover_callback) hover_callback();
+//			else tLog("WARN", "no hover callback");
+			
+			if((GetAsyncKeyState(1) & 0x8000)){
+				if(drag_callback) drag_callback();
+				
+				if(!lastMouse){
+					if(click_callback) click_callback();
+				}
+				else{
+					if(unclick_callback) unclick_callback();
+				}
+				
+				lastMouse = 1;
+			}
+			else{
+				if(undrag_callback) undrag_callback();
+				lastMouse = 0;
+			}
+		}
+		else{
+			if(unhover_callback) unhover_callback();
+			lastMouse = 0;
+		}
+	}
+	void setR(int _r){
+		lastMouse = 0;
+		r = _r;
+	}
+	void setC(int _c){
+		lastMouse = 0;
+		c = _c;
+	}
+	void setText(const std::string& _t){
+		lastMouse = 0;
+		text = _t;
+	}
+	void setCol(tCol _col){
+		col = _col;
+	}
+	int getR(){
+		return r;
+	}
+	int getC(){
+		return c;
+	}
+	std::string getText(){
+		return text;
+	}
+	tCol getCol(){
+		return col;
+	}
+}; 
 
 
 #endif // __A67_TUI_H
