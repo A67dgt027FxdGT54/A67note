@@ -334,6 +334,35 @@ bool tSetClipboardText(const std::wstring& text){
 bool tSetClipboardTextGbk(const std::string& gbkText){
 	return tSetClipboardText(tGbk_to_wstring(gbkText));
 }
+std::wstring tGetClipboardText(){
+	std::wstring res;
+	if(!OpenClipboard(NULL)) return res;
+	if(!IsClipboardFormatAvailable(CF_UNICODETEXT)){
+		CloseClipboard();
+		return res;
+	}
+	HANDLE hData = GetClipboardData(CF_UNICODETEXT);
+	if(!hData){
+		CloseClipboard();
+		return res;
+	}
+	SIZE_T size = GlobalSize(hData);
+	wchar_t* p = static_cast<wchar_t*>(GlobalLock(hData));
+	if(p){
+		size_t capa = size / sizeof(wchar_t);
+		size_t len = 0;
+		while(len < capa && p[len] != L'\0') ++len;
+		res.assign(p, len);
+		GlobalUnlock(hData);
+	}
+	CloseClipboard();
+	return res;
+}
+std::string tGetClipboardTextGbk(){
+	return tWstring_to_gbk(tGetClipboardText());
+}
+
+
 std::pair<int, int> tGetMousePosChar(){
 	COORD fontSz = GetConsoleFontSize(GetStdHandle(STD_OUTPUT_HANDLE), 0);
 	POINT _pt;

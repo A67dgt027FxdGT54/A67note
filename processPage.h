@@ -66,14 +66,14 @@ namespace nsProcessNormalPage{
 	}
 	
 	void setupMouseInfo(){
-		wlog("DEBUG", "call setupMouseInfo()");
+//		wlog("DEBUG", "call setupMouseInfo()");
 		mousePos = tGetMousePosChar();
 		isPressingMouseLeft = GetAsyncKeyState(1) & 0x8000;
 		isMouseInArea = tIsMouseInArea(2, 0, 26, 120);
 	}
 	void processMouseInput(){
-		wlog("DEBUG", "call processMouseInput()");
-		wlog("DEBUG", "processMouseInput() mouse key");
+//		wlog("DEBUG", "call processMouseInput()");
+//		wlog("DEBUG", "processMouseInput() mouse key");
 		if(isMouseInArea){
 			if(isPressingMouseLeft){
 				selectEnd = screenSpaceToTextSpace(mousePos);
@@ -84,7 +84,7 @@ namespace nsProcessNormalPage{
 				}
 			}
 		}
-		wlog("DEBUG", "processMouseInput() select");
+//		wlog("DEBUG", "processMouseInput() select");
 		if(selectStart < selectEnd || selectEnd < selectStart){
 			isSelecting = 1;
 		}
@@ -92,7 +92,7 @@ namespace nsProcessNormalPage{
 			isSelecting = 0;
 		}
 		isPressedLastFrame = isPressingMouseLeft;
-		wlog("DEBUG", "processMouseInput() end");
+//		wlog("DEBUG", "processMouseInput() end");
 	}
 	void clampPosOfAPair(pair<int, int>& pr, bool allowSelectAtEnd){
 		if(file.lines.empty()) {
@@ -113,12 +113,12 @@ namespace nsProcessNormalPage{
 		if(pr.second < 0) pr.second = 0;
 	}
 	void clampPos(){
-		wlog("DEBUG", "call clampPos()");
-		wlog("DEBUG", "clampPos() clamp pos of a pair");
+//		wlog("DEBUG", "call clampPos()");
+//		wlog("DEBUG", "clampPos() clamp pos of a pair");
 		clampPosOfAPair(cursorPos, 1);
 		clampPosOfAPair(selectStart, 0);
 		clampPosOfAPair(selectEnd, 0);
-		wlog("DEBUG", "clampPos() clamp select");
+//		wlog("DEBUG", "clampPos() clamp select");
 		if(selectStart < selectEnd){
 			if(
 				selectStart.second > 0 && 
@@ -148,6 +148,7 @@ namespace nsProcessNormalPage{
 //				selectStart.second++;
 //			}
 			selectStart = selectEnd = cursorPos;
+			isSelecting = 0;
 		}
 		else {
 			if(
@@ -162,15 +163,15 @@ namespace nsProcessNormalPage{
 				file.charType[selectEnd.first][selectEnd.second] == 2
 			) selectEnd.second--;
 		} 
-		wlog("DEBUG", "clampPos() clamp cursorPos");
+//		wlog("DEBUG", "clampPos() clamp cursorPos");
 		if(cursorPos.second < file.charType[cursorPos.first].size() && file.charType[cursorPos.first][cursorPos.second] == 2){
 			cursorPos.second++;
 		}
-		wlog("DEBUG", "clampPos() clamp end");
+//		wlog("DEBUG", "clampPos() clamp end");
 	}
 	// 									REMEMBER TO KEEP `scroll` POSITIVE
 	void deleteSelect(){
-		wlog("DEBUG", "call deleteSelect()");
+//		wlog("DEBUG", "call deleteSelect()");
 		if(selectEnd < selectStart){
 			swap(selectEnd, selectStart);
 		}
@@ -202,7 +203,7 @@ namespace nsProcessNormalPage{
 		cursorPos = selectEnd = selectStart;
 	}
 	void processInput(){
-		wlog("DEBUG", "call processInput()");
+//		wlog("DEBUG", "call processInput()");
 		if(focus != 1 || !tKbhit()) return;
 		
 		wchar_t wch = tGetwch();
@@ -363,6 +364,7 @@ namespace nsProcessNormalPage{
 		}
 		else{
 			string inp = tWchar_to_gbk(wch);
+			if(inp == "\t") inp = "    ";
 			auto ct = calcCharType(inp);
 			if(isSelecting){
 				deleteSelect(); 
@@ -377,7 +379,7 @@ namespace nsProcessNormalPage{
 		}
 	}
 	void outputCursor(){
-		wlog("DEBUG", "call outputCursor()");
+//		wlog("DEBUG", "call outputCursor()");
 		pair<int, int> cp = textSpaceToScreenSpace(cursorPos);
 		if(focus == 1 && (time(0) & 1)){
 			tDisable(T_BLEND);
@@ -390,7 +392,7 @@ namespace nsProcessNormalPage{
 		}
 	}
 	void outputSelect(){
-		wlog("DEBUG", "call outputSelect()");
+//		wlog("DEBUG", "call outputSelect()");
 		if(focus == 1 && isSelecting){
 			tDisable(T_BLEND);
 			tSetOutputCol(0x1F);
@@ -430,10 +432,20 @@ namespace nsProcessNormalPage{
 		}
 	}
 	void outputText(){
-		wlog("DEBUG", "call outputText()");
+//		wlog("DEBUG", "call outputText()");
 		for(int i = 0; i < file.lines.size(); i++){
 			pair<int, int> pos = textSpaceToScreenSpace(make_pair(i, 0));
 			tOutput(file.lines[i], pos.first, pos.second);
+			if(scroll.second < file.charType[i].size() && file.charType[i][scroll.second] == 2){
+				tSetOutputCol(0x0B);
+				tOutput("-", pos.first, 0);
+				tSetOutputCol(0x0F);
+			}
+			if(scroll.second + 119 < file.charType[i].size() && file.charType[i][scroll.second + 119] == 1){
+				tSetOutputCol(0x0B);
+				tOutput("-", pos.first, 119);
+				tSetOutputCol(0x0F);
+			}
 		}
 	}
 	void cutCallback(){
@@ -477,8 +489,106 @@ namespace nsProcessNormalPage{
 		tSetClipboardTextGbk(cbt);
 		alert(0x0A, "复制成功");
 	}
+	void pasteCallback(){
+		if(isSelecting) deleteSelect();
+		string cb = tGetClipboardTextGbk();
+		cb = replaceTabAndRemoveCR(cb);
+		vector<string> lns;
+		stringstream ss(cb);
+		string ln;
+		while(getline(ss, ln)) lns.push_back(ln);
+		if(lns.size() == 1){
+			vector<int> ct = calcCharType(lns[0]);
+			file.lines[cursorPos.first].insert(cursorPos.second, lns[0]);
+			file.charType[cursorPos.first].insert(
+				file.charType[cursorPos.first].begin() + cursorPos.second,
+				ct.begin(),
+				ct.end()
+			);
+			cursorPos.second += lns[0].length();
+		}
+		else if(lns.size() >= 2){
+			/**********************************************\
+			                  FIRST LINE
+			\**********************************************/
+			
+			if(cursorPos.second < file.lines[cursorPos.first].size()){
+				file.insert(cursorPos.first + 1, file.lines[cursorPos.first].substr(cursorPos.second));
+				file.lines[cursorPos.first].erase(cursorPos.second);
+				file.charType[cursorPos.first].erase(
+					file.charType[cursorPos.first].begin() + cursorPos.second,
+					file.charType[cursorPos.first].end()
+				);
+			}
+			else{
+				file.insert(cursorPos.first + 1, "");
+			}
+			vector<int> ct = calcCharType(lns[0]);
+			file.lines[cursorPos.first].insert(
+				file.lines[cursorPos.first].end(),
+				lns[0].begin(),
+				lns[0].end()
+			);
+			file.charType[cursorPos.first].insert(
+				file.charType[cursorPos.first].end(),
+				ct.begin(),
+				ct.end()
+			);
+			
+			/**********************************************\
+			                   MID LINE
+			\**********************************************/
+			int endIdx = cursorPos.first + 1;
+			for(int i = 1; i + 1 < lns.size(); i++){
+				file.insert(endIdx++, lns[i]);
+			}
+			
+			/**********************************************\
+			                  LAST LINE
+			\**********************************************/
+			const string& e = lns[lns.size() - 1];
+			ct = calcCharType(e);
+			file.lines[endIdx].insert(
+				file.lines[endIdx].begin(),
+				e.begin(),
+				e.end()
+			);
+			file.charType[endIdx].insert(
+				file.charType[endIdx].begin(),
+				ct.begin(),
+				ct.end()
+			);
+			
+			cursorPos = make_pair(endIdx, e.length());
+		}
+	}
+	void selectAllCallback(){
+		selectStart = make_pair(0, 0);
+		selectEnd = make_pair(file.lines.size() - 1, static_cast<int>(file.lines[file.lines.size() - 1].size()) - 1);
+	}
+	void saveCallback(){
+		curPage.savePageWithCurPath();
+		alert(0x0A, "保存成功"); 
+	}
+	void refreshCallback(){
+		curPage.getPageWithCurPath();
+		scroll = make_pair(0, 0);
+		cursorPos = make_pair(0, 0);
+	}
+	void uScrollCallback(){
+		scroll.first = max(0, scroll.first - 3);
+	}
+	void dScrollCallback(){
+		scroll.first = min((int)file.lines.size() - 1, scroll.first + 3);
+	}
+	void lScrollCallback(){
+		scroll.second = max(0, scroll.second - 4);
+	}
+	void rScrollCallback(){
+		scroll.second += 4;
+	}
 	void setupFunctions(){
-		wlog("DEBUG", "setupFunctions()");
+//		wlog("DEBUG", "setupFunctions()");
 		
 		for(int i=0;i<btns.size();i++){
 			btns[i].setHoverCallback(
@@ -495,15 +605,27 @@ namespace nsProcessNormalPage{
 		
 		btns[0].setClickCallback(cutCallback);
 		btns[1].setClickCallback(copyCallback);
+		btns[2].setClickCallback(pasteCallback); 
+		btns[3].setClickCallback(selectAllCallback);
+		btns[4].setClickCallback(saveCallback);
+		btns[5].setClickCallback(refreshCallback);
+		btns[6].setDragCallback(uScrollCallback);
+		btns[7].setDragCallback(dScrollCallback);
+		btns[8].setDragCallback(lScrollCallback);
+		btns[9].setDragCallback(rScrollCallback);
 	} 
 	void outputFunctions(){
 		tOutput(string(120, '='), 28, 0);
 		for(int i=0;i<btns.size();i++){
 			btns[i].process();
 		}
+		stringstream status;
+		status << "行：" << cursorPos.first + 1 << "/" << file.lines.size() 
+		       << "  列：" << cursorPos.second + 1 << "/" << file.lines[cursorPos.first].size() + 1;
+		tOutput(status.str(), 29, 76);
 	}
 	void processNormalPage(){
-		wlog("DEBUG", "call processNormalPage()");
+//		wlog("DEBUG", "call processNormalPage()");
 		setupMouseInfo();
 		processMouseInput();
 		clampPos();
@@ -614,6 +736,7 @@ namespace nsProcessURLInput{
 				}
 			}
 			else if(ch == '\r'){
+				if(curPage.type == 0) curPage.savePageWithCurPath();
 				if(url.length() <= urlHeadLength){
 					curPage.type = 404;
 				} 

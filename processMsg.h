@@ -6,11 +6,11 @@ void processMsgSv(){
 		if(msg.type == A67LAN_REWORK_JOIN){
 			UserData& user = userData[msg.from];
 			user.ip = sv.getIpOfClient(msg.from);
-			wlog("INFO", "user socket " + to_string(msg.from) + " ip " + user.ip + " joined");
+			wlog("INFO", "user name " + user.name + " socket " + to_string(msg.from) + " ip " + user.ip + " joined");
 		}
 		else if(msg.type == A67LAN_REWORK_LEAVE){
 			UserData& user = userData[msg.from];
-			wlog("INFO", "user socket " + to_string(msg.from) + " ip " + user.ip + " left");
+			wlog("INFO", "user name " + user.name + " socket " + to_string(msg.from) + " ip " + user.ip + " left");
 			userData.erase(msg.from);
 		}
 		else if(msg.type == A67LAN_REWORK_COMMON){
@@ -26,7 +26,7 @@ void processMsgSv(){
 				
 				if(user.isForbidden()){
 					cl.send_msg("403", msg.from);
-					wlog("INFO", "user socket " + to_string(msg.from) + " ip " + user.ip + " login, status 403");
+					wlog("INFO", "user name " + userName + " socket " + to_string(msg.from) + " ip " + user.ip + " login, status 403");
 				}
 				else if(user.status == eUserStatus.didNotLogin){
 					if(mpNameToToken.find(userName) != mpNameToToken.end() && userToken == mpNameToToken[userName]){
@@ -34,21 +34,21 @@ void processMsgSv(){
 						cl.send_msg("204 login_succeed", msg.from);
 						user.status = eUserStatus.normal;
 						user.invalidTokenCount = 0;
-						wlog("INFO", "user socket " + to_string(msg.from) + " ip " + user.ip + " login, status 204 login_succeed");
+						wlog("INFO", "user name " + userName + " socket " + to_string(msg.from) + " ip " + user.ip + " login, status 204 login_succeed");
 					}
 					else{
 						cl.send_msg("401 invalid_token " + to_string(++user.invalidTokenCount), msg.from);
 						if(user.invalidTokenCount >= 3) banUser(msg.from);
-						wlog("INFO", "user socket " + to_string(msg.from) + " ip " + user.ip + " login, status 401 invalid_token " 
+						wlog("INFO", "user name " + userName + " socket " + to_string(msg.from) + " ip " + user.ip + " login, status 401 invalid_token " 
 							+ to_string(user.invalidTokenCount));
 					}
 				}
 				else if(user.status == eUserStatus.normal){
-					wlog("INFO", "user socket " + to_string(msg.from) + " ip " + user.ip + " login, status 400");
+					wlog("INFO", "user name " + userName + " socket " + to_string(msg.from) + " ip " + user.ip + " login, status 400");
 					; // ignore
 				}
 				else if(user.status == eUserStatus.admin){
-					wlog("INFO", "user socket " + to_string(msg.from) + " ip " + user.ip + " login, status 400");
+					wlog("INFO", "user name " + userName + " socket " + to_string(msg.from) + " ip " + user.ip + " login, status 400");
 					; // ignore
 				}
 			}
@@ -58,11 +58,11 @@ void processMsgSv(){
 				UserData& user = userData[msg.from];
 				if(user.isForbidden()){
 					cl.send_msg("403", msg.from);
-					wlog("INFO", "user socket " + to_string(msg.from) + " ip " + user.ip + " get, status 403");
+					wlog("INFO", "user name " + userName + " socket " + to_string(msg.from) + " ip " + user.ip + " get, status 403");
 				}
 				else if(user.status == eUserStatus.didNotLogin){
 					cl.send_msg("401 did_not_login", msg.from);
-					wlog("INFO", "user socket " + to_string(msg.from) + " ip " + user.ip + " get, status 401 did_not_login");
+					wlog("INFO", "user name " + userName + " socket " + to_string(msg.from) + " ip " + user.ip + " get, status 401 did_not_login");
 				}
 				else{ // normal / admin
 					if(user.name == userName && mpNameToToken.find(userName) != mpNameToToken.end() && userToken == mpNameToToken[userName]){
@@ -70,11 +70,11 @@ void processMsgSv(){
 						File file;
 						if(checkNormalPath(path) != 0){
 							cl.send_msg("404", msg.from);
-							wlog("INFO", "user socket " + to_string(msg.from) + " ip " + user.ip + " get, status 404");
+							wlog("INFO", "user name " + userName + " socket " + to_string(msg.from) + " ip " + user.ip + " get, status 404");
 						}
 						else if(!file.loadFromFile("data/" + path)){
 							cl.send_msg("204 get_no_content " + path, msg.from);
-							wlog("INFO", "user socket " + to_string(msg.from) + " ip " + user.ip + " get path " + path + 
+							wlog("INFO", "user name " + userName + " socket " + to_string(msg.from) + " ip " + user.ip + " get path " + path + 
 								", status 204 get_no_content");
 						}
 						else{
@@ -84,16 +84,50 @@ void processMsgSv(){
 								ssMsg << s << "\n";
 							}
 							cl.send_msg(ssMsg.str(), msg.from);
-							wlog("INFO", "user socket " + to_string(msg.from) + " ip " + user.ip + " get path " + path + ", status 200");
+							wlog("INFO", "user name " + userName + " socket " + to_string(msg.from) + " ip " + user.ip + " get path " + path + ", status 200");
 						}
 					}
 					else{
 						cl.send_msg("401 invalid_token " + to_string(++user.invalidTokenCount), msg.from);
 						if(user.invalidTokenCount >= 3) banUser(msg.from);
-						wlog("INFO", "user socket " + to_string(msg.from) + " ip " + user.ip + " get, status 401 invalid_token " 
+						wlog("INFO", "user name " + userName + " socket " + to_string(msg.from) + " ip " + user.ip + " get, status 401 invalid_token " 
 							+ to_string(user.invalidTokenCount));
 					}
 				}
+			}
+			else if(msgType == "save"){
+				UserData& user = userData[msg.from];
+				if(user.isForbidden()){
+					cl.send_msg("403", msg.from);
+					wlog("INFO", "user name " + user.name + " socket " + to_string(msg.from) + " ip " + user.ip + " save, return 403");
+					return;
+				}
+				else if(user.status == eUserStatus.didNotLogin){
+					cl.send_msg("401 did_not_login", msg.from);
+					wlog("INFO", "user name " + user.name + " socket " + to_string(msg.from) + " ip " + user.ip + " save, return 401 did_not_login");
+					return;
+				}
+				
+				string path;
+				ss >> path;
+				if(checkNormalPath(path) != 0){
+					wlog("INFO", "user name " + user.name + " socket " + to_string(msg.from) + " ip " + user.ip + " save, return 400 bad path");
+					return;
+				}
+				
+				string saveType, tmp;
+				ss >> saveType;
+				File file;
+				if(saveType == "null"){
+					// do nothing
+				}
+				else if(saveType == "content"){
+					getline(ss, tmp);
+					while(getline(ss, tmp)) file.lines.push_back(replaceTabAndRemoveCR(tmp));
+				}
+				file.saveToFile("data/" + path);
+				file.saveToFile("history/" + to_string(time(0)) + "-" + path);
+				wlog("INFO", "user name " + user.name + " socket " + to_string(msg.from) + " ip " + user.ip + " save to path " + path + ", return 204 save_succeed");
 			}
 			// else ignore
 		}
@@ -140,6 +174,9 @@ void processMsgCl(){
 				}
 				else if(msgType == "login_succeed"){
 					; // no expected
+				}
+				else if(msgType == "save_succeed"){
+					nsProcessNormalPage::alert(0x0A, "±£´æ³É¹¦");
 				}
 			}
 			else if(status >= 400){

@@ -28,9 +28,10 @@ bool isServer = false;
  *	- from client to server:
  *		- login <userName> <token>
  *		- get <path> <userName> <token>
+ *		- save <path> (null | content \n line1 \n line2 \n ... )
  *	- from server to client:
  *		- 200 <path> \n line1 \n line2 \n ...
- *		- 204 (login_succeed | get_no_content <path>)
+ *		- 204 (login_succeed | get_no_content <path> | save_succeed)
  *		- 401 did_not_login
  *		- 401 invalid_token <invalidTokenCount>
  *		- 403 
@@ -87,6 +88,17 @@ vector<int> calcCharType(const std::string& value){
 	return ct;
 }
 
+string replaceTabAndRemoveCR(const string& orig){
+	string to;
+	to.reserve(orig.length() * 5 / 4);
+	for(char c: orig){
+		if(c == '\t') to.append("    ");
+		else if(c == '\r') /*discard*/;
+		else to += c;
+	}
+	return to;
+}
+
 struct File{
 	vector<string> lines = {""};
 	/*  Type of the char.
@@ -105,7 +117,7 @@ struct File{
 			return false;
 		} 
 		while(getline(ifsFile, sTempLine)){
-			if(sTempLine.size() && sTempLine.back() == '\r') sTempLine.pop_back();
+			sTempLine = replaceTabAndRemoveCR(sTempLine);
 			lines.push_back(sTempLine);
 		}
 		if(lines.size() == 0) {lines = {""}; charType = {{}}; return false;}
@@ -127,10 +139,30 @@ struct File{
 		lines.insert(lines.begin() + index, value);
 		charType.insert(charType.begin() + index, ct);
 	}
+	void saveToFile(string fullPath){
+		ofstream ofs(fullPath);
+		for(const string& g: lines){
+			ofs << g << "\n";
+		}
+	}
 };
 void requestForPage(const string& path){
 	stringstream ss;
 	ss << "get " << path << " " << myName << " " << token;
+	sendMsgToServer(ss.str());
+}
+bool isNull(const File& file){
+	return file.lines.size() <= 0 || file.lines.size() == 1 && file.lines[0].length() == 0;
+}
+void requestForSave(const string& path, const File& file){
+	stringstream ss;
+	if(isNull(file)) ss << "save " << path << " null";
+	else{
+		ss << "save " << path << " content\n";
+		for(const string& g: file.lines){
+			ss << g << "\n";
+		}
+	}
 	sendMsgToServer(ss.str());
 }
 struct CurPageData{
@@ -179,6 +211,11 @@ struct CurPageData{
 	void requestForCurPage(){
 		requestForPage(path);
 	}
+	void savePageWithCurPath(){
+		if(type != 0) return;
+		if(isServer) curFile.saveToFile("data/" + path), curFile.saveToFile("history/" + to_string(time(0)) + "-" + path);
+		else requestForSave(path, curFile);
+	} 
 }curPage;
 
 namespace nsProcessNormalPage{void setupFunctions();}
@@ -190,6 +227,7 @@ int main(){
 	
 	
 	while(1){
+		tDisable(T_AUTO_LF);
 		processMsg();
 		processPage();
 		Sleep(10);
@@ -198,8 +236,15 @@ int main(){
 	tPause();
 }
 
+struct AutoSave{
+	AutoSave()=default;
+	~AutoSave(){
+		curPage.savePageWithCurPath();
+	}
+}autoSave;
+
 #include "check.h"
 #include "setup.h"
 #include "setup_ui.h"
-#include "processMsg.h"
 #include "processPage.h"
+#include "processMsg.h"
