@@ -10,7 +10,7 @@ int checkChooseIp(const std::string& choose){
 }
 
 int checkUserName(const std::string& name){
-	if(name.length() > 20) return 1;
+	if(name.length() >= 20) return 1;
 	if(name.empty()) return 3;
 	for(char c: name){
 		if(isspace((unsigned char)c)) return 2;

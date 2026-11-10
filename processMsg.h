@@ -176,7 +176,7 @@ void processMsgCl(){
 					; // no expected
 				}
 				else if(msgType == "save_succeed"){
-					nsProcessNormalPage::alert(0x0A, "保存成功");
+					if(!isServer) nsProcessNormalPage::alert(0x0A, "保存成功");
 				}
 			}
 			else if(status >= 400){

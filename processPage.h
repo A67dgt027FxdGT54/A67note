@@ -568,7 +568,7 @@ namespace nsProcessNormalPage{
 	}
 	void saveCallback(){
 		curPage.savePageWithCurPath();
-		alert(0x0A, "保存成功"); 
+		if(isServer) alert(0x0A, "保存成功"); 
 	}
 	void refreshCallback(){
 		curPage.getPageWithCurPath();
