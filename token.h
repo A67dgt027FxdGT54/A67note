@@ -50,12 +50,4 @@ u64 getToken(const std::string& sUserName, const std::string& sLinkingPwd){
 	u64 hLinkingPwd = a67hash(&hTmp, sizeof(u64));
 	return hLinkingPwd ^ hUserName ^ hDay;
 }
-std::string to_hex(u64 token){
-	std::string res = "";
-	for(int i = 60; i >= 0; i -= 4){
-		u64 cur = (token >> i) & 0xF;
-		if(cur < 10) res += cur + '0';
-		else res += cur - 10 + 'A';
-	}
-	return res;
-}
+

@@ -55,6 +55,8 @@ set<string> ipBlacklist, nameBlacklist;
 
 map<string, string> mpNameToToken; 
 
+mt19937_64 gtk(time(0));
+
 struct UserData{
 	string name = NAME_PLACEHOLDER;
 	int status = eUserStatus.didNotLogin;
@@ -219,10 +221,12 @@ struct CurPageData{
 }curPage;
 
 namespace nsProcessNormalPage{void setupFunctions();}
+namespace nsProcessManagerPage{void setupFunctions();}
 
 int main(){
 	setup();
 	nsProcessNormalPage::setupFunctions();
+	nsProcessManagerPage::setupFunctions();
 	showSetupUI();
 	
 	

@@ -142,8 +142,38 @@ wchar_t tGetwch(){
 	WORD wscan = 0;
 	if(!t__Kbcompat::nextKeyEvent(wch, wscan)) return 0;
 	if(wch != 0) return wch;
+#ifndef TUI_GETWCH_EXT
+	if(
+		wscan != 71 ||
+		wscan != 72 ||
+		wscan != 75 ||
+		wscan != 77 ||
+		wscan != 79 ||
+		wscan != 80 ||
+		wscan != 83 
+	) wscan = 0;
+#endif
 	t__Kbcompat::pending.push_back(static_cast<wchar_t>(wscan));
 	return 224;
+}
+
+std::queue<char> t__GetchBuf;
+int tGetch(){
+	if(!t__GetchBuf.empty()){
+		int ret = static_cast<int>(t__GetchBuf.front());
+		t__GetchBuf.pop();
+		return ret;
+	}
+	else{
+		std::string s = tWchar_to_gbk(tGetwch());
+		if(s.size() == 0) return 0;
+		for(auto c: s){
+			t__GetchBuf.push(c);
+		}
+		int ret = static_cast<int>(t__GetchBuf.front());
+		t__GetchBuf.pop();
+		return ret;
+	}
 }
 
 tErr tEnable(tEnum func){
@@ -293,7 +323,7 @@ void tPause(){
 	}
 }
 char tChoose(const std::string& list){
-	char ch = _getch();
+	char ch = tGetch();
 	while(([&]()->bool{
 		for(const char& c: list){
 			if(c == ch) return false;

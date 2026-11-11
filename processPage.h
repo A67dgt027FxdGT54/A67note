@@ -643,9 +643,8 @@ namespace nsProcessNormalPage{
 	}
 } 
 
-void processManagerPage(){
-	;
-}
+#include "manager.h"
+
 void processLoadingPage(){
 	tSetOutputCol(0x09);
 	tOutput("Loading... Please wait.", 10, 45);
@@ -832,7 +831,7 @@ void processPage(){
 	nsProcessURLInput::processURLInput();
 	
 	if(curPage.type == 0) nsProcessNormalPage::processNormalPage();
-	else if(curPage.type == 1) processManagerPage();
+	else if(curPage.type == 1) nsProcessManagerPage::processManagerPage();
 	else if(curPage.type == 2) processLoadingPage();
 	else if(curPage.type == 401) process401Page();
 	else if(curPage.type == 403) process403Page();
