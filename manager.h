@@ -115,9 +115,11 @@ namespace nsProcessManagerPage{
 				if(op == "ban" || op == "block"){
 					ss >> tgt;
 					if(type == "ip"){
+						if(tgt.length()) 
 						ipBlacklist.insert(tgt);
 					}
 					else if(type == "name"){
+						if(tgt.length()) 
 						nameBlacklist.insert(tgt);
 					}
 					sbc = 0x0C;
@@ -126,9 +128,11 @@ namespace nsProcessManagerPage{
 				else if(op == "unblock"){
 					ss >> tgt;
 					if(type == "ip"){
+						if(tgt.length()) 
 						ipBlacklist.erase(tgt);
 					}
 					else if(type == "name"){
+						if(tgt.length()) 
 						nameBlacklist.erase(tgt);
 					}
 					sbc = 0x0A;

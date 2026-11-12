@@ -329,7 +329,7 @@ char tChoose(const std::string& list){
 			if(c == ch) return false;
 		}
 		return true;
-	})()) ch = _getch();
+	})()) ch = tGetch();
 	return ch;
 }
 
