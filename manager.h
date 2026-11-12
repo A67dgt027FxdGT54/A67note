@@ -100,8 +100,6 @@ namespace nsProcessManagerPage{
 	void processCLI(){
 		if(tIsMouseInArea(2, 0, 28, 120) && GetAsyncKeyState(1)) focus = 1;
 		
-		// TODO: SHOWBACK
-		
 		if(focus == 1 && tKbhit()){
 			wchar_t wch = tGetwch();
 			string s = tWchar_to_gbk(wch);
@@ -122,6 +120,8 @@ namespace nsProcessManagerPage{
 					else if(type == "name"){
 						nameBlacklist.insert(tgt);
 					}
+					sbc = 0x0C;
+					cliShowback = "Succeed to " + op + " " + type + " " + tgt;
 				}
 				else if(op == "unblock"){
 					ss >> tgt;
@@ -131,14 +131,20 @@ namespace nsProcessManagerPage{
 					else if(type == "name"){
 						nameBlacklist.erase(tgt);
 					}
+					sbc = 0x0A;
+					cliShowback = "Succeed to " + op + " " + type + " " + tgt;
 				}
 				else if(op == "gen"){
 					if(type.length())
 						mpNameToToken[type] = to_hex(gtk());
+					sbc = 0x0A;
+					cliShowback = "Succeed to " + op + " token for " + type;
 				}
 				else if(op == "delete"){
 					if(type.length())
 						mpNameToToken.erase(type);
+					sbc = 0x0C;
+					cliShowback = "Succeed to " + op + " token for " + type;
 				}
 				cliBuf = "";
 			}
@@ -151,7 +157,7 @@ namespace nsProcessManagerPage{
 		}
 		
 		tOutput(string(120, '='), 27, 0);
-		tOutput("> " + cliBuf, 28, 0);
+		tOutput("> " + cliBuf + ((time(0) & 1) ? "_" : ""), 28, 0);
 		tSetOutputCol(sbc);
 		tOutput(cliShowback, 29, 0);
 		tSetOutputCol(0x0F);
