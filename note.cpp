@@ -3,6 +3,10 @@
 #include "TUI.h" 
 using namespace std;
 
+//    LINKING OPTIONS: 
+// 
+//    -lws2_32 -liphlpapi
+
 void wlog(std::string level,std::string msg){
 	std::ofstream _log("note.log",std::ios::app);
     std::time_t now = std::time(nullptr);

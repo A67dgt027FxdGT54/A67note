@@ -144,12 +144,12 @@ wchar_t tGetwch(){
 	if(wch != 0) return wch;
 #ifndef TUI_GETWCH_EXT
 	if(
-		wscan != 71 ||
-		wscan != 72 ||
-		wscan != 75 ||
-		wscan != 77 ||
-		wscan != 79 ||
-		wscan != 80 ||
+		wscan != 71 &&
+		wscan != 72 &&
+		wscan != 75 &&
+		wscan != 77 &&
+		wscan != 79 &&
+		wscan != 80 &&
 		wscan != 83 
 	) wscan = 0;
 #endif
